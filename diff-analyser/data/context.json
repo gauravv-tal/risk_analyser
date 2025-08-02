@@ -1,0 +1,10 @@
+{
+    "dependencies": {
+      "billing/payment_service.py": ["billing/invoice.py", "common/logger.py"],
+      "auth/login.py": ["auth/utils.py", "common/security.py"]
+    },
+    "test_coverage": {
+      "billing/payment_service.py": ["tests/test_payment_service.py"],
+      "auth/login.py": []
+    }
+  }
