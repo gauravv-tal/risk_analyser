@@ -315,9 +315,49 @@ const EnhancedDashboard: React.FC = () => {
           }));
         }
 
+        console.log(`🔄 Fetching detailed info for ${prResult.data.length} PRs to get file change statistics...`);
+
+        // Fetch detailed PR information for each PR to get file change statistics
+        // The list endpoint doesn't include additions, deletions, changed_files
+        const detailedPRs = await Promise.allSettled(
+          prResult.data.map(async (pr: any) => {
+            try {
+              const detailResult = await githubApi.getPullRequest(
+                "SayaliTal", 
+                "calorie-tracker", 
+                pr.number
+              );
+              
+              if (detailResult.data) {
+                // Merge list data with detailed data
+                return {
+                  ...pr,
+                  additions: detailResult.data.additions || 0,
+                  deletions: detailResult.data.deletions || 0,
+                  changed_files: detailResult.data.changed_files || 0,
+                };
+              } else {
+                // If detailed fetch fails, use original PR data with estimated values
+                console.warn(`⚠️ Could not fetch detailed info for PR ${pr.number}, using list data only`);
+                return pr;
+              }
+            } catch (error) {
+              console.warn(`⚠️ Error fetching detailed info for PR ${pr.number}:`, error);
+              return pr; // Return original PR data as fallback
+            }
+          })
+        );
+
+        // Process the results and extract successful PR data
+        const successfulPRs = detailedPRs
+          .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+          .map(result => result.value);
+
+        console.log(`✅ Successfully fetched detailed info for ${successfulPRs.length} PRs`);
+
         // Transform GitHub PRs to dashboard format with API risk levels
         const transformedPRs = await Promise.all(
-          prResult.data.map(async (pr: any) => {
+          successfulPRs.map(async (pr: any) => {
             // Get risk level from backend API for each PR
             let apiRiskScore = Math.round(calculatePRRiskScore(pr) * 10); // Fallback to calculated score
             let apiRiskLevel = "medium";
@@ -366,7 +406,7 @@ const EnhancedDashboard: React.FC = () => {
             console.log(
               `📊 PR ${pr.number} Changes: +${pr.additions || 0}/-${
                 pr.deletions || 0
-              } in ${pr.changed_files || 0} files (GitHub API)`
+              } in ${pr.changed_files || 0} files (GitHub API with detailed fetch)`
             );
 
             return {
@@ -381,9 +421,9 @@ const EnhancedDashboard: React.FC = () => {
                 year: "numeric",
               }),
               repository: pr.base.repo.name,
-              files: pr.changed_files || 0, // Real GitHub data
-              additions: pr.additions || 0, // Real GitHub data
-              deletions: pr.deletions || 0, // Real GitHub data
+              files: pr.changed_files || 0, // Real GitHub data from detailed fetch
+              additions: pr.additions || 0, // Real GitHub data from detailed fetch
+              deletions: pr.deletions || 0, // Real GitHub data from detailed fetch
               avatar: pr.user.avatar_url,
               // Additional GitHub data
               githubData: {
@@ -404,7 +444,7 @@ const EnhancedDashboard: React.FC = () => {
 
         setRecentPRs(transformedPRs);
         console.log(
-          `✅ Loaded ${transformedPRs.length} PRs from GitHub with API risk levels`
+          `✅ Loaded ${transformedPRs.length} PRs from GitHub with detailed file change statistics and API risk levels`
         );
       } else {
         // No PRs found, use mock data
@@ -695,6 +735,7 @@ const EnhancedDashboard: React.FC = () => {
         title: "PR",
         dataIndex: "id",
         key: "id",
+        width: 160, // Set width for PR column to accommodate titles
         render: (text: string, record: any) => (
           <div style={{ display: "flex", alignItems: "center" }}>
             <Avatar
@@ -720,29 +761,31 @@ const EnhancedDashboard: React.FC = () => {
         title: "Author",
         dataIndex: "author",
         key: "author",
+        width: 90, // Reduced width for Author column
         render: (author: string) => (
-          <Text style={{ fontWeight: "500" }}>{author}</Text>
+          <Text style={{ fontWeight: "500", fontSize: "12px" }}>{author}</Text>
         ),
       },
       {
         title: "Risk Level",
         dataIndex: "status",
         key: "status",
+        width: 130, // Slightly reduced width for Risk Level column
         render: (status: string, record: any) => (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               {getRiskTag(status, record.riskScore)}
               {record.apiData?.hasApiData ? (
                 <Tag
                   color="blue"
-                  style={{ fontSize: "10px", padding: "0 4px" }}
+                  style={{ fontSize: "8px", padding: "0 3px" }}
                 >
                   API
                 </Tag>
               ) : (
                 <Tag
                   color="orange"
-                  style={{ fontSize: "10px", padding: "0 4px" }}
+                  style={{ fontSize: "8px", padding: "0 3px" }}
                 >
                   CALC
                 </Tag>
@@ -753,9 +796,9 @@ const EnhancedDashboard: React.FC = () => {
               size="small"
               strokeColor={getRiskColor(status)}
               showInfo={false}
-              style={{ marginTop: "4px" }}
+              style={{ marginTop: "3px" }}
             />
-            <Text type="secondary" style={{ fontSize: "11px" }}>
+            <Text type="secondary" style={{ fontSize: "10px" }}>
               {record.apiData?.hasApiData ? "Backend API" : "Calculated"}
             </Text>
           </div>
@@ -764,52 +807,67 @@ const EnhancedDashboard: React.FC = () => {
       {
         title: "Changes",
         key: "changes",
+        width: 130, // Slightly reduced width to prevent line wrapping
         // Shows actual GitHub API data: additions, deletions, and changed_files
         render: (record: any) => (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <Text style={{ color: "#52c41a", fontWeight: "500" }}>
+          <div style={{ minWidth: "110px" }}>
+            {/* Main changes line - keep on single line */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "2px",
+              flexWrap: "nowrap",
+              whiteSpace: "nowrap"
+            }}>
+              <Text style={{ color: "#52c41a", fontWeight: "500", fontSize: "12px" }}>
                 +{record.additions || 0}
               </Text>
-              <Text type="secondary">/</Text>
-              <Text style={{ color: "#ff4d4f", fontWeight: "500" }}>
+              <Text type="secondary" style={{ margin: "0 1px" }}>/</Text>
+              <Text style={{ color: "#ff4d4f", fontWeight: "500", fontSize: "12px" }}>
                 -{record.deletions || 0}
               </Text>
               {record.githubData?.url && (
                 <Tag
                   color="green"
                   style={{
-                    fontSize: "9px",
-                    padding: "0 3px",
-                    marginLeft: "4px",
+                    fontSize: "7px",
+                    padding: "0 2px",
+                    marginLeft: "3px",
+                    lineHeight: "10px",
+                    height: "12px"
                   }}
                 >
                   LIVE
                 </Tag>
               )}
             </div>
+            
+            {/* File count and source info - more compact */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                marginTop: "2px",
+                marginTop: "3px",
+                fontSize: "9px",
               }}
             >
-              <Text type="secondary" style={{ fontSize: "11px" }}>
-                📁 {record.files || 0} files
+              <Text type="secondary" style={{ fontSize: "9px" }}>
+                📁 {record.files || 0}
               </Text>
-              <Text type="secondary" style={{ fontSize: "10px" }}>
-                {record.githubData?.url ? "GitHub API" : "Estimated"}
+              <Text type="secondary" style={{ fontSize: "8px" }}>
+                {record.githubData?.url ? "API" : "EST"}
               </Text>
             </div>
+            
+            {/* Progress bar - more compact */}
             {record.additions + record.deletions > 0 && (
-              <div style={{ marginTop: "4px" }}>
+              <div style={{ marginTop: "2px" }}>
                 <div
                   style={{
-                    height: "3px",
+                    height: "2px",
                     backgroundColor: "#f0f0f0",
-                    borderRadius: "2px",
+                    borderRadius: "1px",
                     overflow: "hidden",
                   }}
                 >
@@ -823,7 +881,7 @@ const EnhancedDashboard: React.FC = () => {
                         100
                       )}%`,
                       backgroundColor: "#52c41a",
-                      borderRadius: "2px",
+                      borderRadius: "1px",
                     }}
                   />
                 </div>
@@ -836,25 +894,28 @@ const EnhancedDashboard: React.FC = () => {
         title: "Created",
         dataIndex: "created",
         key: "created",
+        width: 85, // Reduced width for Created column
         render: (created: string) => (
           <div style={{ display: "flex", alignItems: "center" }}>
             <ClockCircleOutlined
-              style={{ marginRight: "4px", color: "#8c8c8c" }}
+              style={{ marginRight: "3px", color: "#8c8c8c", fontSize: "11px" }}
             />
-            <Text type="secondary">{created}</Text>
+            <Text type="secondary" style={{ fontSize: "11px" }}>{created}</Text>
           </div>
         ),
       },
       {
         title: "Actions",
         key: "actions",
+        width: 90, // Slightly increased width for better button appearance
         render: (record: any) => (
-          <Space>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <Button
               type="primary"
               size="small"
               icon={<EyeOutlined />}
               onClick={() => handleViewPR(record)}
+              style={{ width: "100px" }}
             >
               View
             </Button>
@@ -862,10 +923,11 @@ const EnhancedDashboard: React.FC = () => {
               size="small"
               icon={<BarChartOutlined />}
               onClick={() => handleAnalyzePR(record)}
+              style={{ width: "100px" }}
             >
               Analyze
             </Button>
-          </Space>
+          </div>
         ),
       },
     ];
@@ -881,7 +943,7 @@ const EnhancedDashboard: React.FC = () => {
           pagination={false}
           size="middle"
           rowKey="id"
-          scroll={{ x: 800 }}
+          scroll={{ x: 615 }}
         />
       </Spin>
     );

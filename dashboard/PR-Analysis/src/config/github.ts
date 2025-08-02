@@ -99,6 +99,16 @@ export interface GitHubPullRequest {
   created_at: string;
   updated_at: string;
   html_url: string;
+  // File change statistics (available when fetching individual PRs)
+  additions?: number;
+  deletions?: number;
+  changed_files?: number;
+  // Additional optional fields that may be present
+  draft?: boolean;
+  mergeable?: boolean;
+  comments?: number;
+  review_comments?: number;
+  commits?: number;
 }
 
 // Helper function to check if token has required permissions
