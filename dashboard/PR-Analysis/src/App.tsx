@@ -10,12 +10,18 @@ import { Layout, Menu, Typography } from "antd";
 import {
   BarChartOutlined,
   // Hidden for now - keeping imports for future use
-  // DashboardOutlined,
-  // SettingOutlined,
+  DashboardOutlined,
+  SettingOutlined,
+  BugOutlined,
+  ExclamationCircleOutlined,
+  MonitorOutlined,
 } from "@ant-design/icons";
 import PRAnalysis from "./components/PRAnalysis";
-// Hidden for now - keeping import for future use
-// import Dashboard from "./components/Dashboard";
+import EnhancedDashboard from "./components/EnhancedDashboard";
+import PullRequestsPage from "./components/PullRequestsPage";
+import SystemHealthPage from "./components/SystemHealthPage";
+import RiskAssessmentPage from "./components/RiskAssessmentPage";
+import CICDPage from "./components/CICDPage";
 import "./App.css";
 
 const { Header, Sider, Content } = Layout;
@@ -27,21 +33,35 @@ const AppContent: React.FC = () => {
 
   const menuItems = [
     {
+      key: "/dashboard",
+      icon: <DashboardOutlined />,
+      label: <Link to="/">Dashboard</Link>,
+    },
+    {
+      key: "/pull-requests",
+      icon: <BugOutlined />,
+      label: <Link to="/pull-requests">Pull Requests</Link>,
+    },
+    {
       key: "/pr-analysis",
       icon: <BarChartOutlined />,
-      label: <Link to="/pr-analysis">PR Analysis</Link>,
+      label: <Link to="/pr-analysis">Analysis</Link>,
     },
-    // Hidden for now - keeping components intact for future use
-    // {
-    //   key: "/",
-    //   icon: <DashboardOutlined />,
-    //   label: <Link to="/">Dashboard</Link>,
-    // },
-    // {
-    //   key: "/settings",
-    //   icon: <SettingOutlined />,
-    //   label: <Link to="/settings">Settings</Link>,
-    // },
+    {
+      key: "/ci-cd",
+      icon: <SettingOutlined />,
+      label: <Link to="/ci-cd">CI/CD</Link>,
+    },
+    {
+      key: "/risk-assessment",
+      icon: <ExclamationCircleOutlined />,
+      label: <Link to="/risk-assessment">Risk Assessment</Link>,
+    },
+    {
+      key: "/system-health",
+      icon: <MonitorOutlined />,
+      label: <Link to="/system-health">System Health</Link>,
+    },
   ];
 
   return (
@@ -52,6 +72,13 @@ const AppContent: React.FC = () => {
         onCollapse={setCollapsed}
         style={{
           backgroundColor: "#001529",
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          height: "100vh",
+          zIndex: 100,
+          overflow: "auto",
         }}
       >
         <div
@@ -65,18 +92,37 @@ const AppContent: React.FC = () => {
             justifyContent: "center",
           }}
         >
-          <Title level={4} style={{ color: "white", margin: 0 }}>
-            {collapsed ? "RA" : "Risk Analyser"}
-          </Title>
+          <Link
+            to="/"
+            style={{
+              textDecoration: "none",
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Title level={4} style={{ color: "white", margin: 0 }}>
+              {collapsed ? "RA" : "Risk Analyser"}
+            </Title>
+          </Link>
         </div>
         <Menu
           theme="dark"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[
+            location.pathname === "/" ? "/dashboard" : location.pathname,
+          ]}
           mode="inline"
           items={menuItems}
         />
       </Sider>
-      <Layout>
+      <Layout
+        style={{
+          marginLeft: collapsed ? 80 : 200,
+          transition: "margin-left 0.2s",
+        }}
+      >
         <Header
           style={{
             padding: "0 24px",
@@ -87,9 +133,7 @@ const AppContent: React.FC = () => {
             height: "64px",
           }}
         >
-          <Title level={3} style={{ margin: 0, color: "#1890ff" }}>
-            AI-Powered Impact & Risk Dashboard
-          </Title>
+          {/* Header title removed to avoid duplication with page-specific headers */}
         </Header>
         <Content
           style={{
@@ -101,12 +145,18 @@ const AppContent: React.FC = () => {
           }}
         >
           <Routes>
-            {/* Make PR Analysis the default page */}
-            <Route path="/" element={<PRAnalysis />} />
+            {/* Make Dashboard the default page */}
+            <Route path="/" element={<EnhancedDashboard />} />
+            <Route path="/dashboard" element={<EnhancedDashboard />} />
             <Route path="/pr-analysis" element={<PRAnalysis />} />
-            {/* Hidden routes - keeping components for future use */}
-            {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-            {/* <Route path="/settings" element={<div>Settings coming soon...</div>} /> */}
+            <Route path="/pull-requests" element={<PullRequestsPage />} />
+            <Route path="/ci-cd" element={<CICDPage />} />
+            <Route path="/risk-assessment" element={<RiskAssessmentPage />} />
+            <Route path="/system-health" element={<SystemHealthPage />} />
+            <Route
+              path="/settings"
+              element={<div>Settings coming soon...</div>}
+            />
           </Routes>
         </Content>
       </Layout>

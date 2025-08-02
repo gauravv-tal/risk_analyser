@@ -9,83 +9,87 @@ import {
 
 export const mockPullRequests: PullRequest[] = [
   {
-    id: "123",
-    url: "https://github.com/company/billing-service/pull/123",
-    number: 123,
-    title: "Refactor billing service architecture",
+    id: "3",
+    url: "https://github.com/SayaliTal/calorie-tracker/pull/3",
+    number: 3,
+    title:
+      "Add Quantum module with service and controller for quantum calorie processing, including AI vision analysis and neural network integration. Update app module to include QuantumModule.",
     description:
-      "This PR affects core billing logic and may impact payment processing",
+      "This PR introduces a complex quantum processing module with AI vision analysis and neural network integration for advanced calorie processing capabilities",
     author: {
-      username: "john.doe",
-      displayName: "John Doe",
-      avatarUrl: "https://github.com/john.doe.png",
+      username: "yasinbhimani",
+      displayName: "Yasin Bhimani",
+      avatarUrl: "https://github.com/yasinbhimani.png",
     },
     status: "open",
-    createdAt: "2024-01-15T10:30:00Z",
-    updatedAt: "2024-01-15T14:20:00Z",
+    createdAt: "2025-08-02T10:00:00Z",
+    updatedAt: "2025-08-02T10:00:00Z",
     branch: {
-      source: "feature/billing-refactor",
+      source: "feature/quantum-module",
       target: "main",
     },
     repository: {
-      name: "billing-service",
-      owner: "company",
-      fullName: "company/billing-service",
+      name: "calorie-tracker",
+      owner: "SayaliTal",
+      fullName: "SayaliTal/calorie-tracker",
       platform: "github",
     },
-    riskScore: 8.5,
+    riskScore: 9.2, // High risk due to complex AI/ML integration
   },
   {
-    id: "124",
-    url: "https://github.com/company/billing-service/pull/124",
-    number: 124,
-    title: "Add customer payment validation",
-    description: "Enhanced validation for customer payment methods",
+    id: "2",
+    url: "https://github.com/SayaliTal/calorie-tracker/pull/2",
+    number: 2,
+    title:
+      "[WIP] Merge activity log capability and track calories burn by day & week",
+    description:
+      "Work in progress PR to add activity logging and calorie burn tracking with daily and weekly analytics",
     author: {
-      username: "jane.smith",
-      displayName: "Jane Smith",
-      avatarUrl: "https://github.com/jane.smith.png",
+      username: "gauravv-tal",
+      displayName: "Gaurav Tal",
+      avatarUrl: "https://github.com/gauravv-tal.png",
     },
     status: "open",
-    createdAt: "2024-01-14T09:15:00Z",
-    updatedAt: "2024-01-14T16:45:00Z",
+    createdAt: "2025-08-02T09:30:00Z",
+    updatedAt: "2025-08-02T09:30:00Z",
     branch: {
-      source: "feature/payment-validation",
+      source: "feature/activity-logging",
       target: "main",
     },
     repository: {
-      name: "billing-service",
-      owner: "company",
-      fullName: "company/billing-service",
+      name: "calorie-tracker",
+      owner: "SayaliTal",
+      fullName: "SayaliTal/calorie-tracker",
       platform: "github",
     },
-    riskScore: 6.2,
+    riskScore: 6.7, // Medium risk due to WIP status and data tracking features
   },
   {
-    id: "125",
-    url: "https://github.com/company/billing-service/pull/125",
-    number: 125,
-    title: "Update user interface components",
-    description: "Minor UI improvements and accessibility updates",
+    id: "1",
+    url: "https://github.com/SayaliTal/calorie-tracker/pull/1",
+    number: 1,
+    title: "[WIP][DO NOT MERGE] Update calorie.service.ts",
+    description:
+      "Work in progress changes to calorie service - marked as DO NOT MERGE for review purposes only",
     author: {
-      username: "alex.johnson",
-      displayName: "Alex Johnson",
-      avatarUrl: "https://github.com/alex.johnson.png",
+      username: "gauravv-tal",
+      displayName: "Gaurav Tal",
+      avatarUrl: "https://github.com/gauravv-tal.png",
     },
-    status: "merged",
-    createdAt: "2024-01-12T14:22:00Z",
-    updatedAt: "2024-01-13T11:30:00Z",
+    status: "open",
+    createdAt: "2025-08-01T14:22:00Z",
+    updatedAt: "2025-08-01T14:22:00Z",
     branch: {
-      source: "feature/ui-updates",
+      source: "feature/calorie-service-updates",
       target: "main",
     },
     repository: {
-      name: "billing-service",
-      owner: "company",
-      fullName: "company/billing-service",
+      name: "calorie-tracker",
+      owner: "SayaliTal",
+      fullName: "SayaliTal/calorie-tracker",
       platform: "github",
     },
-    riskScore: 3.1,
+    riskScore: 4.1, // Lower risk due to DO NOT MERGE status and service-only changes
   },
 ];
 
@@ -125,121 +129,134 @@ export const mockComplexityMetrics: ComplexityMetrics = {
 
 export const mockImpactedModules: ImpactedModule[] = [
   {
-    id: "billing-core",
-    name: "Billing Core",
+    id: "quantum-module",
+    name: "Quantum Processing Module",
     riskLevel: "high",
     confidence: 0.95,
     description:
-      "Core billing logic changes affect payment flow and invoice generation",
+      "Complex quantum processing module with AI vision analysis and neural network integration for calorie processing",
     affectedFiles: [
-      "src/billing/core.js",
-      "src/billing/calculator.js",
-      "src/billing/invoice.js",
+      "src/quantum/quantum.module.ts",
+      "src/quantum/quantum.service.ts",
+      "src/quantum/quantum.controller.ts",
     ],
     dependencies: [
-      "payment-processor",
-      "invoice-generator",
-      "customer-service",
+      "ai-vision-service",
+      "neural-network-processor",
+      "calorie-service",
     ],
     metrics: {
-      linesChanged: 156,
-      functionsModified: 8,
-      testCoverageImpact: -12,
+      linesChanged: 287,
+      functionsModified: 12,
+      testCoverageImpact: -18,
     },
     riskFactors: [
-      "Critical business logic",
-      "High coupling with payment systems",
-      "Limited test coverage",
+      "Complex AI/ML integration",
+      "High computational complexity",
+      "Limited test coverage for ML components",
     ],
   },
   {
-    id: "payment-api",
-    name: "Payment API",
+    id: "calorie-service",
+    name: "Calorie Service",
     riskLevel: "high",
     confidence: 0.88,
-    description: "API endpoint modifications may break existing integrations",
-    affectedFiles: ["src/api/payment.js", "src/api/middleware/validation.js"],
-    dependencies: ["billing-core", "external-gateway"],
-    metrics: {
-      linesChanged: 89,
-      functionsModified: 4,
-      testCoverageImpact: -5,
-    },
-    riskFactors: [
-      "Public API changes",
-      "External integration dependencies",
-      "Backward compatibility concerns",
-    ],
-  },
-  {
-    id: "customer-service",
-    name: "Customer Service",
-    riskLevel: "medium",
-    confidence: 0.76,
-    description: "Customer billing history retrieval methods updated",
-    affectedFiles: ["src/services/customer.js"],
-    dependencies: ["billing-core", "user-management"],
-    metrics: {
-      linesChanged: 45,
-      functionsModified: 2,
-      testCoverageImpact: 3,
-    },
-    riskFactors: ["Customer data access patterns", "Performance implications"],
-  },
-  {
-    id: "audit-service",
-    name: "Audit Service",
-    riskLevel: "low",
-    confidence: 0.82,
-    description:
-      "Audit logging service for tracking billing operations and changes",
-    affectedFiles: ["src/services/audit.js", "src/middleware/audit.js"],
-    dependencies: ["billing-core", "logging-service"],
-    metrics: {
-      linesChanged: 23,
-      functionsModified: 1,
-      testCoverageImpact: 8,
-    },
-    riskFactors: ["Low business impact", "Good test coverage"],
-  },
-  {
-    id: "notification-system",
-    name: "Notification System",
-    riskLevel: "medium",
-    confidence: 0.74,
-    description:
-      "Email and SMS notification system for billing events and alerts",
+    description: "Core calorie calculation and tracking service modifications",
     affectedFiles: [
-      "src/notifications/email.js",
-      "src/notifications/sms.js",
-      "src/templates/billing.html",
+      "src/services/calorie.service.ts",
+      "src/interfaces/calorie.interface.ts",
     ],
-    dependencies: ["customer-service", "email-service", "sms-service"],
+    dependencies: ["activity-tracker", "nutrition-database"],
     metrics: {
-      linesChanged: 67,
-      functionsModified: 5,
+      linesChanged: 134,
+      functionsModified: 6,
       testCoverageImpact: -8,
     },
     riskFactors: [
-      "External service dependencies",
-      "Template changes",
-      "Customer communication impact",
+      "Core business logic changes",
+      "Data accuracy implications",
+      "Algorithm modifications",
     ],
   },
   {
-    id: "reporting-module",
-    name: "Reporting Module",
+    id: "activity-tracker",
+    name: "Activity Tracking Module",
+    riskLevel: "medium",
+    confidence: 0.82,
+    description:
+      "Activity logging and calorie burn tracking with daily/weekly analytics",
+    affectedFiles: [
+      "src/modules/activity/activity.service.ts",
+      "src/modules/activity/activity.controller.ts",
+    ],
+    dependencies: ["calorie-service", "user-profile"],
+    metrics: {
+      linesChanged: 156,
+      functionsModified: 8,
+      testCoverageImpact: 5,
+    },
+    riskFactors: ["Data persistence changes", "Analytics accuracy"],
+  },
+  {
+    id: "ai-vision-service",
+    name: "AI Vision Analysis",
+    riskLevel: "high",
+    confidence: 0.76,
+    description:
+      "AI-powered food recognition and calorie estimation from images",
+    affectedFiles: ["src/ai/vision.service.ts", "src/ai/image-processor.ts"],
+    dependencies: ["quantum-module", "ml-models"],
+    metrics: {
+      linesChanged: 98,
+      functionsModified: 4,
+      testCoverageImpact: -12,
+    },
+    riskFactors: [
+      "Machine learning model dependencies",
+      "Image processing complexity",
+    ],
+  },
+  {
+    id: "user-profile",
+    name: "User Profile Service",
+    riskLevel: "medium",
+    confidence: 0.79,
+    description:
+      "User profile management and personalized calorie goal calculations",
+    affectedFiles: [
+      "src/user/profile.service.ts",
+      "src/user/profile.controller.ts",
+      "src/user/goal-calculator.ts",
+    ],
+    dependencies: ["calorie-service", "activity-tracker"],
+    metrics: {
+      linesChanged: 67,
+      functionsModified: 5,
+      testCoverageImpact: 3,
+    },
+    riskFactors: [
+      "User data handling",
+      "Personalization logic changes",
+      "Goal calculation accuracy",
+    ],
+  },
+  {
+    id: "nutrition-database",
+    name: "Nutrition Database",
     riskLevel: "low",
     confidence: 0.88,
-    description: "Financial reporting and analytics module for billing data",
-    affectedFiles: ["src/reports/financial.js", "src/reports/analytics.js"],
-    dependencies: ["billing-core", "analytics-service"],
+    description: "Food nutrition data management and lookup services",
+    affectedFiles: [
+      "src/database/nutrition.service.ts",
+      "src/database/food-items.ts",
+    ],
+    dependencies: ["calorie-service"],
     metrics: {
       linesChanged: 31,
       functionsModified: 3,
-      testCoverageImpact: 5,
+      testCoverageImpact: 8,
     },
-    riskFactors: ["Read-only operations", "Non-critical business function"],
+    riskFactors: ["Read-only operations", "Data integrity maintenance"],
   },
 ];
 
@@ -740,7 +757,7 @@ export const mockHistoricalData: HistoricalRiskData[] = [
       },
       {
         type: "hotfix",
-        description: "Payment gateway timeout fix",
+        description: "AI model inference timeout fix",
         timestamp: "2024-01-10T16:45:00Z",
       },
     ],
@@ -767,18 +784,18 @@ export const mockHistoricalData: HistoricalRiskData[] = [
     pullRequestCount: 2,
     hotfixCount: 3,
     deploymentSuccess: false,
-    description: "Critical payment gateway issues",
+    description: "Critical calorie calculation accuracy issues",
     riskTrend: "critical",
     events: [
       {
         type: "deployment",
         status: "failed",
         timestamp: "2023-12-28T09:20:00Z",
-        error: "Payment gateway connection timeout",
+        error: "AI model service connection timeout",
       },
       {
         type: "hotfix",
-        description: "Emergency payment system rollback",
+        description: "Emergency calorie algorithm rollback",
         timestamp: "2023-12-28T10:30:00Z",
       },
       {
@@ -788,7 +805,7 @@ export const mockHistoricalData: HistoricalRiskData[] = [
       },
       {
         type: "hotfix",
-        description: "Payment gateway retry logic",
+        description: "AI model inference retry logic",
         timestamp: "2023-12-28T15:20:00Z",
       },
     ],
@@ -796,8 +813,8 @@ export const mockHistoricalData: HistoricalRiskData[] = [
 ];
 
 export const mockDashboardStats: DashboardStats = {
-  totalPRs: 156,
-  highRiskPRs: 23,
-  averageRiskScore: 6.4,
-  testCoverage: 78,
+  totalPRs: 3,
+  highRiskPRs: 1, // The quantum module PR
+  averageRiskScore: 6.7, // Average of 9.2, 6.7, 4.1
+  testCoverage: 65, // Lower coverage for a developing project
 };
