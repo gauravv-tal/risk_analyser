@@ -1,0 +1,437 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reset some default Ant Design styles */
+.ant-layout {
+  background: #f0f2f5;
+}
+
+.ant-layout-content {
+  background: #f0f2f5;
+}
+
+/* Increase base font size */
+body {
+  font-size: 16px;
+}
+
+/* Increase Ant Design component font sizes */
+.ant-typography {
+  font-size: 16px;
+}
+
+.ant-card-head-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ant-card-body {
+  font-size: 16px;
+}
+
+.ant-menu-item {
+  font-size: 16px;
+}
+
+.ant-btn {
+  font-size: 16px;
+}
+
+.ant-input {
+  font-size: 16px;
+}
+
+.ant-select-selection-item {
+  font-size: 16px;
+}
+
+.ant-statistic-content {
+  font-size: 18px;
+}
+
+.ant-statistic-title {
+  font-size: 16px;
+}
+
+.ant-tag {
+  font-size: 14px;
+}
+
+.ant-timeline-item-content {
+  font-size: 15px;
+}
+
+.ant-tabs-tab {
+  font-size: 16px;
+}
+
+/* Custom styles for sidebar */
+.ant-layout-sider {
+  box-shadow: 2px 0 8px 0 rgba(29, 35, 41, 0.05);
+}
+
+/* Risk score styling */
+.risk-score-high {
+  color: #ff4d4f !important;
+}
+
+.risk-score-medium {
+  color: #faad14 !important;
+}
+
+.risk-score-low {
+  color: #52c41a !important;
+}
+
+/* Module cards */
+.module-card {
+  transition: all 0.3s ease;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Test recommendation cards */
+.test-recommendation-card {
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.test-recommendation-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Code block styling */
+.test-code-block {
+  background-color: #f6f8fa !important;
+  border: 1px solid #e1e4e8 !important;
+  border-radius: 6px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace !important;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Priority badges */
+.priority-high {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.priority-medium {
+  background-color: #faad14;
+  border-color: #faad14;
+}
+
+.priority-low {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+/* Header styling */
+.ant-layout-header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ant-layout-header h3 {
+  font-size: 20px;
+}
+
+/* Card improvements */
+.ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Progress bar styling */
+.ant-progress-bg {
+  border-radius: 100px;
+}
+
+/* Timeline improvements */
+.ant-timeline-item-content {
+  font-size: 15px;
+}
+
+/* Search input */
+.ant-input-search {
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+/* Tab styling */
+.ant-tabs-tab {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.ant-tabs-tab-active {
+  font-weight: 600;
+}
+
+/* Large display text */
+.large-risk-score {
+  font-size: 72px !important;
+  font-weight: 700 !important;
+}
+
+.complexity-metric {
+  font-size: 28px !important;
+  font-weight: 600 !important;
+}
+
+/* PR Input styling */
+.pr-input-container {
+  margin-bottom: 24px;
+}
+
+.pr-input-label {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.pr-input-field {
+  font-size: 16px;
+  padding: 12px;
+}
+
+/* Validation feedback styles */
+.ant-typography.ant-typography-success {
+  color: #52c41a !important;
+}
+
+.ant-typography.ant-typography-danger {
+  color: #ff4d4f !important;
+}
+
+.ant-input-status-error {
+  border-color: #ff4d4f;
+}
+
+.ant-input-status-error:focus,
+.ant-input-status-error:hover {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* Button disabled state */
+.ant-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .ant-layout-sider {
+    width: 80px !important;
+    min-width: 80px !important;
+  }
+  
+  .ant-layout-content {
+    margin-left: 80px !important;
+  }
+  
+  body {
+    font-size: 14px;
+  }
+  
+  .large-risk-score {
+    font-size: 48px !important;
+  }
+  
+  .complexity-metric {
+    font-size: 20px !important;
+  }
+}
+
+/* Animation for cards */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 40px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ant-card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Module card responsive styling */
+.module-card {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.module-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Responsive adjustments for module cards */
+@media (max-width: 576px) {
+  .module-card {
+    margin-bottom: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .module-card {
+    min-height: 180px;
+  }
+}
+
+/* Module metrics styling */
+.module-metrics {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: auto;
+}
+
+.module-confidence {
+  font-size: 12px;
+  color: #595959;
+  font-weight: 500;
+}
+
+/* Test Recommendations Enhancements */
+.test-recommendation-card {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+.test-recommendation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.test-recommendation-controls {
+  background: linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%);
+  border: 1px solid #e8f4fd;
+}
+
+.test-recommendation-priority-high {
+  border-left: 4px solid #ff4d4f;
+}
+
+.test-recommendation-priority-medium {
+  border-left: 4px solid #faad14;
+}
+
+.test-recommendation-priority-low {
+  border-left: 4px solid #52c41a;
+}
+
+/* Sorting and Pagination Controls */
+.test-controls-section {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.test-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: #f0f2f5;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Performance optimizations for large lists */
+.test-recommendations-container {
+  contain: layout style paint;
+}
+
+.test-recommendation-item {
+  contain: layout;
+  will-change: transform;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .test-recommendation-controls .ant-col {
+    margin-bottom: 8px;
+  }
+  
+  .test-recommendation-controls .ant-select {
+    width: 100% !important;
+  }
+}
