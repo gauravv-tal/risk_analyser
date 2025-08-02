@@ -660,8 +660,18 @@ const PRAnalysis: React.FC = () => {
 
         // Handle summary response
         if (summaryData.status === "fulfilled") {
+          console.log("summaryData", summaryData);
           setPrSummary(summaryData.value);
           console.log("✅ Summary data loaded successfully");
+          console.log("🔧 SUMMARY API RESPONSE DETAILS:", {
+            endpoint: "/api/v1/summary/retrieve/" + prId,
+            hasData: !!summaryData.value?.data,
+            hasTestCoverage: !!summaryData.value?.data?.testCoverage,
+            testCoverageValue: summaryData.value?.data?.testCoverage,
+            hasRiskScore: !!summaryData.value?.data?.riskScore,
+            riskScoreValue: summaryData.value?.data?.riskScore,
+            fullResponse: summaryData.value,
+          });
         } else {
           console.error("Summary API failed:", summaryData.reason);
           setPrSummary(null);
@@ -1296,17 +1306,6 @@ const PRAnalysis: React.FC = () => {
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Files Changed
                         </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#52c41a",
-                            marginTop: 2,
-                          }}
-                        >
-                          {githubFilesChanged.length > 0
-                            ? "GitHub API"
-                            : "Backend API"}
-                        </div>
                       </div>
                     </Col>
 
@@ -1337,15 +1336,6 @@ const PRAnalysis: React.FC = () => {
                             <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                               Lines Changed
                             </div>
-                            <div
-                              style={{
-                                fontSize: "11px",
-                                color: "#52c41a",
-                                marginTop: 2,
-                              }}
-                            >
-                              GitHub API
-                            </div>
                           </div>
                         ) : (
                           <div>
@@ -1361,15 +1351,6 @@ const PRAnalysis: React.FC = () => {
                             <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                               Lines Changed
                             </div>
-                            <div
-                              style={{
-                                fontSize: "11px",
-                                color: "#faad14",
-                                marginTop: 2,
-                              }}
-                            >
-                              Backend API
-                            </div>
                           </div>
                         )}
                       </div>
@@ -1383,26 +1364,31 @@ const PRAnalysis: React.FC = () => {
                             fontSize: "24px",
                             fontWeight: "bold",
                             color:
-                              (prSummary?.data?.riskScore || 0) > 70
+                              (prSummary?.data?.summaryData?.data?.riskScore ||
+                                0) > 70
                                 ? "#ff4d4f"
-                                : (prSummary?.data?.riskScore || 0) > 40
+                                : (prSummary?.data?.summaryData?.data
+                                    ?.riskScore || 0) > 40
                                 ? "#faad14"
                                 : "#52c41a",
                           }}
                         >
-                          {prSummary?.data?.riskScore || 0}%
+                          {prSummary?.data?.summaryData?.data?.riskScore || 0}%
+                          {prSummary?.data?.summaryData?.data?.riskScore && (
+                            <Tag
+                              color="green"
+                              style={{
+                                fontSize: "10px",
+                                marginLeft: 8,
+                                padding: "0 4px",
+                              }}
+                            >
+                              LIVE API
+                            </Tag>
+                          )}
                         </div>
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Risk Score
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#1890ff",
-                            marginTop: 2,
-                          }}
-                        >
-                          AI Analysis
                         </div>
                       </div>
                     </Col>
@@ -1417,19 +1403,24 @@ const PRAnalysis: React.FC = () => {
                             color: "#722ed1",
                           }}
                         >
-                          {prSummary?.data?.testCoverage || 0}%
+                          {prSummary?.data?.summaryData?.data?.testCoverage ||
+                            0}
+                          %
+                          {prSummary?.data?.summaryData?.data?.testCoverage && (
+                            <Tag
+                              color="green"
+                              style={{
+                                fontSize: "10px",
+                                marginLeft: 8,
+                                padding: "0 4px",
+                              }}
+                            >
+                              LIVE API
+                            </Tag>
+                          )}
                         </div>
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Test Coverage
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#722ed1",
-                            marginTop: 2,
-                          }}
-                        >
-                          Backend API
                         </div>
                       </div>
                     </Col>
@@ -1949,7 +1940,6 @@ const PRAnalysis: React.FC = () => {
                             </Text>
                           </div>
                         )}
-
                       </Card>
                     </Col>
                   ))}
