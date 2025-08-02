@@ -13,7 +13,7 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 
 # Build the application
-RUN mvn package -DskipTests
+RUN mvn clean package -DskipTests
 RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../s3-storage-api-0.0.1-SNAPSHOT.jar)
 
 # Stage 2: Create the runtime image
@@ -47,4 +47,4 @@ ENV JAVA_OPTS="-Xms512m -Xmx1024m"
 EXPOSE 8080
 
 # Command to run the application
-ENTRYPOINT ["java", "-cp", "app:app/lib/*", "com.tal.risk.analyser.S3StorageApiApplication"]
+ENTRYPOINT ["java", "-cp", ".:lib/*", "com.tal.risk.analyser.S3StorageApiApplication"]
