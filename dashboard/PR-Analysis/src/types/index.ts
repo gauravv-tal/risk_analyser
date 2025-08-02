@@ -86,6 +86,10 @@ export interface ImpactedModule {
   dependencies: string[];
   metrics: ModuleMetrics;
   riskFactors: string[];
+  // Additional fields from API response
+  componentType?: string;
+  businessImpact?: string;
+  filePath?: string;
 }
 
 export interface TestCoverage {

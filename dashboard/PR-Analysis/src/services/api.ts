@@ -233,6 +233,39 @@ public void testDatabaseConnection_FailureScenario_HandlesGracefully() {
 }`,
           },
         ],
+        // Mock affected_components in the format specified by the user
+        affected_components: [
+          {
+            file_path: "src/payment/PaymentProcessor.java",
+            component_name: "PaymentProcessor",
+            component_type: "Service",
+            summary_of_changes:
+              "Enhanced payment validation logic and added new transaction methods for improved security and error handling.",
+            business_impact:
+              "Critical payment processing improvements that enhance transaction security and reduce failed payments.",
+            criticality: "high",
+          },
+          {
+            file_path: "src/user/UserValidator.java",
+            component_name: "UserValidator",
+            component_type: "Validator",
+            summary_of_changes:
+              "Updated email validation regex patterns and added new validation rules for enhanced user input security.",
+            business_impact:
+              "Improves user registration flow and prevents invalid user data from entering the system.",
+            criticality: "medium",
+          },
+          {
+            file_path: "src/database/DatabaseConnection.java",
+            component_name: "DatabaseConnection",
+            component_type: "Configuration",
+            summary_of_changes:
+              "Modified connection pooling settings and added graceful error handling for database connectivity issues.",
+            business_impact:
+              "Enhances application stability and provides better database error recovery mechanisms.",
+            criticality: "high",
+          },
+        ],
       };
 
       console.log("🎭 Returning mock response in API format:", mockApiResponse);
@@ -250,6 +283,18 @@ public void testDatabaseConnection_FailureScenario_HandlesGracefully() {
    */
   transformApiResponseToUI(apiResponse: any): any {
     if (apiResponse.status === "success" && apiResponse.data) {
+      // Check if API response includes affected_components at the top level
+      const hasAffectedComponents =
+        apiResponse.affected_components &&
+        Array.isArray(apiResponse.affected_components);
+
+      if (hasAffectedComponents) {
+        console.log(
+          "🔧 Found affected_components in API response, preserving for UI:",
+          apiResponse.affected_components
+        );
+      }
+
       // Transform each API data item to TestRecommendation format
       const testRecommendations = apiResponse.data.map(
         (item: any, index: number) => {
@@ -298,37 +343,57 @@ public void testDatabaseConnection_FailureScenario_HandlesGracefully() {
                   : "medium",
             },
             confidence: Math.random() * 0.3 + 0.7, // 0.7 to 1.0
-            description: `Generated test case for ${fileName.replace(
-              /\.(java|js|ts|py)$/i,
-              ""
-            )} module`,
-            rationale: `This test ensures proper functionality and error handling for the ${fileName} component`,
+            description: `Automated test recommendation for ${fileName}`,
+            rationale: `Based on code analysis of ${fileName}, this test covers ${
+              priority === "high"
+                ? "critical error scenarios"
+                : priority === "low"
+                ? "basic functionality"
+                : "standard use cases"
+            }.`,
             coverage: {
-              currentCoverage: Math.floor(Math.random() * 30) + 40,
-              targetCoverage: Math.floor(Math.random() * 20) + 80,
-              gap: Math.floor(Math.random() * 30) + 10,
+              currentCoverage: Math.floor(Math.random() * 30) + 50, // 50-80%
+              targetCoverage: 85,
+              gap: Math.floor(Math.random() * 20) + 5, // 5-25%
             },
-            testCategories: this.extractTestCategories(testCode, fileName),
+            testCategories: [
+              priority === "high" ? "Error Handling" : "Functional",
+              "Unit Test",
+            ],
             testCode: {
               language: language,
               framework: framework,
               code: testCode,
             },
             relatedFiles: [fileName],
-            estimatedTime: `${Math.floor(Math.random() * 4) + 1} hours`,
+            estimatedTime: `${Math.floor(Math.random() * 4) + 1}h`, // Backward compatibility
           };
         }
       );
 
-      return {
-        status: "success",
+      const result = {
         testRecommendations: testRecommendations,
-        message: apiResponse.message,
-        rawApiData: apiResponse, // Include raw API data for extracting file names
+        rawApiData: apiResponse, // Keep original response for further processing
+        totalRecommendations: testRecommendations.length,
+        apiVersion: "1.0",
+        timestamp: new Date().toISOString(),
+        ...(hasAffectedComponents && {
+          affected_components: apiResponse.affected_components,
+        }),
       };
+
+      console.log("🔧 Transformed API response for UI:", {
+        testRecommendationsCount: result.testRecommendations.length,
+        hasAffectedComponents: hasAffectedComponents,
+        affectedComponentsCount: hasAffectedComponents
+          ? apiResponse.affected_components.length
+          : 0,
+      });
+
+      return result;
     }
 
-    return apiResponse;
+    return null;
   },
 
   /**

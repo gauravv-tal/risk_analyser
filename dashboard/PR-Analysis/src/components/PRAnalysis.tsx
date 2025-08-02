@@ -47,7 +47,12 @@ import {
   mockImpactedModules,
   mockHistoricalData,
 } from "../data/mockData";
-import { PullRequest, TestRecommendation, ImpactedModule } from "../types";
+import {
+  PullRequest,
+  TestRecommendation,
+  ImpactedModule,
+  ModuleMetrics,
+} from "../types";
 import { prAnalysisApi, transformers } from "../services/api";
 import { githubApi } from "../services/githubApi";
 import { GITHUB_CONFIG } from "../config/github";
@@ -441,12 +446,101 @@ const PRAnalysis: React.FC = () => {
     [createModuleFromFileName]
   );
 
+  // Transform affected_components from API response into impacted modules
+  const transformAffectedComponentsToModules = useCallback(
+    (affectedComponents: any[]): ImpactedModule[] => {
+      if (!affectedComponents || !Array.isArray(affectedComponents)) return [];
+
+      return affectedComponents.map((component: any, index: number) => {
+        // Map criticality to risk level
+        let riskLevel: "high" | "medium" | "low" = "medium";
+        if (component.criticality) {
+          const criticality = component.criticality.toLowerCase();
+          if (criticality === "high" || criticality === "critical") {
+            riskLevel = "high";
+          } else if (criticality === "low") {
+            riskLevel = "low";
+          } else {
+            riskLevel = "medium"; // medium, moderate, etc.
+          }
+        }
+
+        // Extract file name from file_path for display
+        const fileName = component.file_path
+          ? component.file_path.split("/").pop() || component.file_path
+          : "";
+
+        // Create metrics based on component type and changes
+        const metrics: ModuleMetrics = {
+          linesChanged: 0, // Not provided in this format
+          functionsModified: 0, // Not provided in this format
+          testCoverageImpact: 0, // Not provided in this format
+        };
+
+        // Create risk factors based on criticality and component type
+        const riskFactors = [];
+        if (
+          component.criticality === "high" ||
+          component.criticality === "critical"
+        ) {
+          riskFactors.push("High criticality component");
+        }
+        if (component.component_type === "Configuration") {
+          riskFactors.push("Configuration changes");
+        }
+        if (
+          component.business_impact &&
+          component.business_impact.toLowerCase().includes("routing")
+        ) {
+          riskFactors.push("Routing modifications");
+        }
+        if (
+          component.business_impact &&
+          component.business_impact.toLowerCase().includes("persistence")
+        ) {
+          riskFactors.push("Database/persistence changes");
+        }
+
+        return {
+          id: component.file_path || `component-${index}`,
+          name:
+            component.component_name || fileName || `Component ${index + 1}`,
+          riskLevel: riskLevel,
+          confidence: 0.85, // Default confidence for API-provided data
+          description:
+            component.summary_of_changes || "Component affected by PR changes",
+          affectedFiles: component.file_path ? [component.file_path] : [],
+          dependencies: [], // Not provided in this format
+          metrics: metrics,
+          riskFactors: riskFactors,
+          // Additional fields from API response
+          componentType: component.component_type,
+          businessImpact: component.business_impact,
+          filePath: component.file_path,
+        };
+      });
+    },
+    []
+  );
+
   // Transform raw API response into impacted modules (before UI transformation)
   const transformRawApiDataToImpactedModules = useCallback(
     (rawApiData: any): ImpactedModule[] => {
       if (!rawApiData || !rawApiData.data) return [];
 
-      // Extract file names from raw API data (id field contains file names)
+      // Check if API response includes affected_components
+      if (rawApiData.affected_components) {
+        console.log("✅ Using affected_components from API response:");
+        console.log(
+          "📊 Expected format: { file_path, component_name, component_type, summary_of_changes, business_impact, criticality }"
+        );
+        console.log("📋 Received components:", rawApiData.affected_components);
+        return transformAffectedComponentsToModules(
+          rawApiData.affected_components
+        );
+      }
+
+      // Fallback: Extract file names from raw API data (id field contains file names)
       const fileMap = new Map<string, any>();
 
       rawApiData.data.forEach((item: any) => {
@@ -459,7 +553,7 @@ const PRAnalysis: React.FC = () => {
 
       return Array.from(fileMap.values());
     },
-    [createModuleFromFileName]
+    [createModuleFromFileName, transformAffectedComponentsToModules]
   );
 
   const validatePRUrl = (url: string) => {
@@ -599,10 +693,20 @@ const PRAnalysis: React.FC = () => {
             testRecommendationsResult.testRecommendations
           );
 
-          // Transform API data into impacted modules based on file names
+          // Check for affected_components in the API response first
           let impactedModules: ImpactedModule[] = [];
-          if (testRecommendationsResult.rawApiData) {
-            // Use raw API data to extract file names
+
+          if (testRecommendationsResult.affected_components) {
+            // Use affected_components directly from the response
+            console.log(
+              "✅ Found affected_components in API response:",
+              testRecommendationsResult.affected_components
+            );
+            impactedModules = transformAffectedComponentsToModules(
+              testRecommendationsResult.affected_components
+            );
+          } else if (testRecommendationsResult.rawApiData) {
+            // Use raw API data to extract file names or affected_components
             impactedModules = transformRawApiDataToImpactedModules(
               testRecommendationsResult.rawApiData
             );
@@ -612,7 +716,11 @@ const PRAnalysis: React.FC = () => {
               testRecommendationsResult
             );
           }
+
           setApiImpactedModules(impactedModules);
+          console.log(
+            `✅ Loaded ${impactedModules.length} impacted modules from API`
+          );
 
           // Transform API data into files changed format
           let filesChanged: any[] = [];
@@ -1093,34 +1201,85 @@ const PRAnalysis: React.FC = () => {
       {/* Show analysis results only if PR is analyzed and not loading */}
       {analyzedPR && !loading && (
         <>
-          {/* PR Summary Section */}
-          {prSummary && prSummary.data && (
+          {/* Enhanced PR Summary Section with GitHub Data */}
+          {(prSummary?.data ||
+            repositoryInfo ||
+            githubFilesChanged.length > 0) && (
             <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
               <Col span={24}>
                 <Card
-                  title={
-                    <span style={{ fontSize: "18px" }}>
-                      📊 PR Summary
-                      {loadingSummary && (
-                        <span
-                          style={{
-                            marginLeft: 12,
-                            fontSize: "14px",
-                            color: "#1890ff",
-                          }}
-                        >
-                          Loading...
-                        </span>
-                      )}
-                    </span>
-                  }
                   style={{
                     background:
                       "linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%)",
                     border: "1px solid #e8f4fd",
                   }}
                 >
+                  {/* PR Header with GitHub Info */}
+                  {repositoryInfo && (
+                    <div
+                      style={{
+                        marginBottom: 20,
+                        paddingBottom: 16,
+                        borderBottom: "1px solid #f0f0f0",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div>
+                          <Title
+                            level={3}
+                            style={{ margin: 0, fontSize: "20px" }}
+                          >
+                            📊 PR Summary - {repositoryInfo.full_name}
+                          </Title>
+                          <Text type="secondary" style={{ fontSize: "14px" }}>
+                            Repository: {repositoryInfo.name} • Language:{" "}
+                            {repositoryInfo.language || "Mixed"}
+                          </Text>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <Tag color="blue" style={{ marginBottom: 4 }}>
+                            {repositoryInfo.private
+                              ? "🔒 Private"
+                              : "🌍 Public"}
+                          </Tag>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: "12px" }}>
+                            ⭐ {repositoryInfo.stargazers_count} • 🍴{" "}
+                            {repositoryInfo.forks_count}
+                          </Text>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!repositoryInfo && (
+                    <div style={{ marginBottom: 20 }}>
+                      <Title level={3} style={{ margin: 0, fontSize: "20px" }}>
+                        📊 PR Summary
+                        {loadingSummary && (
+                          <span
+                            style={{
+                              marginLeft: 12,
+                              fontSize: "14px",
+                              color: "#1890ff",
+                            }}
+                          >
+                            Loading...
+                          </span>
+                        )}
+                      </Title>
+                    </div>
+                  )}
+
+                  {/* Enhanced Metrics Row */}
                   <Row gutter={[16, 16]}>
+                    {/* Files Changed - Prioritize GitHub data */}
                     <Col xs={24} sm={12} lg={6}>
                       <div style={{ textAlign: "center", padding: "12px" }}>
                         <div
@@ -1130,29 +1289,93 @@ const PRAnalysis: React.FC = () => {
                             color: "#1890ff",
                           }}
                         >
-                          {prSummary.data.totalFiles || 0}
+                          {githubFilesChanged.length > 0
+                            ? githubFilesChanged.length
+                            : prSummary?.data?.totalFiles || 0}
                         </div>
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Files Changed
                         </div>
-                      </div>
-                    </Col>
-                    <Col xs={24} sm={12} lg={6}>
-                      <div style={{ textAlign: "center", padding: "12px" }}>
                         <div
                           style={{
-                            fontSize: "24px",
-                            fontWeight: "bold",
+                            fontSize: "11px",
                             color: "#52c41a",
+                            marginTop: 2,
                           }}
                         >
-                          {prSummary.data.linesChanged || 0}
-                        </div>
-                        <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
-                          Lines Changed
+                          {githubFilesChanged.length > 0
+                            ? "GitHub API"
+                            : "Backend API"}
                         </div>
                       </div>
                     </Col>
+
+                    {/* Lines Changed - Show both additions and deletions if available */}
+                    <Col xs={24} sm={12} lg={6}>
+                      <div style={{ textAlign: "center", padding: "12px" }}>
+                        {githubFilesChanged.length > 0 ? (
+                          <div>
+                            <div
+                              style={{ fontSize: "18px", fontWeight: "bold" }}
+                            >
+                              <span style={{ color: "#52c41a" }}>
+                                +
+                                {githubFilesChanged.reduce(
+                                  (sum, file) => sum + (file.additions || 0),
+                                  0
+                                )}
+                              </span>
+                              {" / "}
+                              <span style={{ color: "#ff4d4f" }}>
+                                -
+                                {githubFilesChanged.reduce(
+                                  (sum, file) => sum + (file.deletions || 0),
+                                  0
+                                )}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
+                              Lines Changed
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#52c41a",
+                                marginTop: 2,
+                              }}
+                            >
+                              GitHub API
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "24px",
+                                fontWeight: "bold",
+                                color: "#52c41a",
+                              }}
+                            >
+                              {prSummary?.data?.linesChanged || 0}
+                            </div>
+                            <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
+                              Lines Changed
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#faad14",
+                                marginTop: 2,
+                              }}
+                            >
+                              Backend API
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Col>
+
+                    {/* Risk Score - From Backend API */}
                     <Col xs={24} sm={12} lg={6}>
                       <div style={{ textAlign: "center", padding: "12px" }}>
                         <div
@@ -1160,20 +1383,31 @@ const PRAnalysis: React.FC = () => {
                             fontSize: "24px",
                             fontWeight: "bold",
                             color:
-                              prSummary.data.riskScore > 70
+                              (prSummary?.data?.riskScore || 0) > 70
                                 ? "#ff4d4f"
-                                : prSummary.data.riskScore > 40
+                                : (prSummary?.data?.riskScore || 0) > 40
                                 ? "#faad14"
                                 : "#52c41a",
                           }}
                         >
-                          {prSummary.data.riskScore || 0}%
+                          {prSummary?.data?.riskScore || 0}%
                         </div>
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Risk Score
                         </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#1890ff",
+                            marginTop: 2,
+                          }}
+                        >
+                          AI Analysis
+                        </div>
                       </div>
                     </Col>
+
+                    {/* Test Coverage - From Backend API */}
                     <Col xs={24} sm={12} lg={6}>
                       <div style={{ textAlign: "center", padding: "12px" }}>
                         <div
@@ -1183,15 +1417,99 @@ const PRAnalysis: React.FC = () => {
                             color: "#722ed1",
                           }}
                         >
-                          {prSummary.data.testCoverage || 0}%
+                          {prSummary?.data?.testCoverage || 0}%
                         </div>
                         <div style={{ fontSize: "14px", color: "#8c8c8c" }}>
                           Test Coverage
                         </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#722ed1",
+                            marginTop: 2,
+                          }}
+                        >
+                          Backend API
+                        </div>
                       </div>
                     </Col>
                   </Row>
-                  {prSummary.data.overallAssessment && (
+
+                  {/* Additional GitHub Metrics if available */}
+                  {githubFilesChanged.length > 0 && (
+                    <Row
+                      gutter={[16, 16]}
+                      style={{
+                        marginTop: 16,
+                        paddingTop: 16,
+                        borderTop: "1px solid #f0f0f0",
+                      }}
+                    >
+                      <Col xs={24} sm={8}>
+                        <div style={{ textAlign: "center", padding: "8px" }}>
+                          <div
+                            style={{
+                              fontSize: "20px",
+                              fontWeight: "bold",
+                              color: "#52c41a",
+                            }}
+                          >
+                            {
+                              githubFilesChanged.filter(
+                                (file) => file.status === "added"
+                              ).length
+                            }
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
+                            Files Added
+                          </div>
+                        </div>
+                      </Col>
+                      <Col xs={24} sm={8}>
+                        <div style={{ textAlign: "center", padding: "8px" }}>
+                          <div
+                            style={{
+                              fontSize: "20px",
+                              fontWeight: "bold",
+                              color: "#faad14",
+                            }}
+                          >
+                            {
+                              githubFilesChanged.filter(
+                                (file) => file.status === "modified"
+                              ).length
+                            }
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
+                            Files Modified
+                          </div>
+                        </div>
+                      </Col>
+                      <Col xs={24} sm={8}>
+                        <div style={{ textAlign: "center", padding: "8px" }}>
+                          <div
+                            style={{
+                              fontSize: "20px",
+                              fontWeight: "bold",
+                              color: "#ff4d4f",
+                            }}
+                          >
+                            {
+                              githubFilesChanged.filter(
+                                (file) => file.status === "removed"
+                              ).length
+                            }
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
+                            Files Deleted
+                          </div>
+                        </div>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {/* Assessment from Backend API */}
+                  {prSummary?.data?.overallAssessment && (
                     <div
                       style={{
                         marginTop: "16px",
@@ -1202,11 +1520,31 @@ const PRAnalysis: React.FC = () => {
                       }}
                     >
                       <Text style={{ fontSize: "16px", lineHeight: "1.6" }}>
-                        <strong>Assessment:</strong>{" "}
+                        <strong>🤖 AI Assessment:</strong>{" "}
                         {prSummary.data.overallAssessment}
                       </Text>
                     </div>
                   )}
+
+                  {/* Data Sources Indicator */}
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "8px",
+                      backgroundColor: "#fafafa",
+                      borderRadius: "4px",
+                      borderLeft: "3px solid #52c41a",
+                    }}
+                  >
+                    <Text style={{ fontSize: "12px", color: "#595959" }}>
+                      <strong>Data Sources:</strong>{" "}
+                      {githubFilesChanged.length > 0 &&
+                        "📁 GitHub API (Files) • "}
+                      {repositoryInfo && "🏛️ GitHub API (Repository) • "}
+                      {prSummary?.data && "🤖 Backend API (Risk Analysis) • "}
+                      📊 Combined Live Data
+                    </Text>
+                  </div>
                 </Card>
               </Col>
             </Row>
@@ -1302,498 +1640,6 @@ const PRAnalysis: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Repository Information Section */}
-          {repositoryInfo && (
-            <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-              <Col span={24}>
-                <Card
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)",
-                    border: "2px solid #b7eb8f",
-                    borderRadius: "12px",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                  }}
-                >
-                  {/* Header Section */}
-                  <div style={{ marginBottom: 24 }}>
-                    <Row align="middle" justify="space-between">
-                      <Col>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              background:
-                                "linear-gradient(135deg, #52c41a, #73d13d)",
-                              borderRadius: "50%",
-                              width: "48px",
-                              height: "48px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "20px",
-                            }}
-                          >
-                            🏛️
-                          </div>
-                          <div>
-                            <Title
-                              level={3}
-                              style={{ margin: 0, color: "#52c41a" }}
-                            >
-                              {repositoryInfo.full_name}
-                            </Title>
-                            <Text type="secondary" style={{ fontSize: "16px" }}>
-                              Repository Overview
-                            </Text>
-                          </div>
-                        </div>
-                      </Col>
-                      <Col>
-                        <Button
-                          type="link"
-                          icon={<LinkOutlined />}
-                          href={repositoryInfo.html_url}
-                          target="_blank"
-                          style={{ fontSize: "16px" }}
-                        >
-                          View on GitHub
-                        </Button>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* Description */}
-                  {repositoryInfo.description && (
-                    <div
-                      style={{
-                        marginBottom: 24,
-                        padding: "16px",
-                        background: "#f9f9f9",
-                        borderRadius: "8px",
-                        borderLeft: "4px solid #52c41a",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: "16px",
-                          fontStyle: "italic",
-                          color: "#595959",
-                        }}
-                      >
-                        "{repositoryInfo.description}"
-                      </Text>
-                    </div>
-                  )}
-
-                  {/* Main Stats Row */}
-                  <Row gutter={[24, 16]} style={{ marginBottom: 24 }}>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #fff1f0, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #ffa39e",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            fontWeight: "bold",
-                            color: "#ff4d4f",
-                          }}
-                        >
-                          ⭐ {repositoryInfo.stargazers_count || 0}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#8c8c8c",
-                            marginTop: 4,
-                          }}
-                        >
-                          Stars
-                        </div>
-                      </div>
-                    </Col>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #e6f7ff, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #91d5ff",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            fontWeight: "bold",
-                            color: "#1890ff",
-                          }}
-                        >
-                          🍴 {repositoryInfo.forks_count || 0}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#8c8c8c",
-                            marginTop: 4,
-                          }}
-                        >
-                          Forks
-                        </div>
-                      </div>
-                    </Col>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #fff7e6, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #ffd591",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            fontWeight: "bold",
-                            color: "#fa8c16",
-                          }}
-                        >
-                          🐛 {repositoryInfo.open_issues_count || 0}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#8c8c8c",
-                            marginTop: 4,
-                          }}
-                        >
-                          Open Issues
-                        </div>
-                      </div>
-                    </Col>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #f9f0ff, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #d3adf7",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            fontWeight: "bold",
-                            color: "#722ed1",
-                          }}
-                        >
-                          👀 {repositoryInfo.watchers_count || 0}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#8c8c8c",
-                            marginTop: 4,
-                          }}
-                        >
-                          Watchers
-                        </div>
-                      </div>
-                    </Col>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #f6ffed, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #b7eb8f",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            fontWeight: "bold",
-                            color: "#52c41a",
-                          }}
-                        >
-                          📦{" "}
-                          {Math.round((repositoryInfo.size || 0) / 1024) || 1}MB
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#8c8c8c",
-                            marginTop: 4,
-                          }}
-                        >
-                          Repository Size
-                        </div>
-                      </div>
-                    </Col>
-                    <Col xs={12} sm={8} lg={4}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "20px 12px",
-                          background:
-                            "linear-gradient(135deg, #f0f5ff, #ffffff)",
-                          borderRadius: "8px",
-                          border: "1px solid #adc6ff",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            color: "#1890ff",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          💻 {repositoryInfo.language || "Mixed"}
-                        </div>
-                        <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
-                          Primary Language
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  {/* Repository Details */}
-                  <Row gutter={[24, 16]}>
-                    <Col xs={24} sm={12} lg={8}>
-                      <div
-                        style={{
-                          padding: "16px",
-                          background: "#fafafa",
-                          borderRadius: "8px",
-                          height: "100%",
-                        }}
-                      >
-                        <div style={{ marginBottom: "12px" }}>
-                          <UserOutlined
-                            style={{ color: "#1890ff", marginRight: "8px" }}
-                          />
-                          <Text strong style={{ color: "#262626" }}>
-                            Owner Information
-                          </Text>
-                        </div>
-                        <Space style={{ marginBottom: "8px" }}>
-                          <Avatar
-                            src={repositoryInfo.owner?.avatar_url}
-                            size="large"
-                          />
-                          <div>
-                            <div
-                              style={{ fontWeight: "500", fontSize: "16px" }}
-                            >
-                              {repositoryInfo.owner?.login}
-                            </div>
-                            <Text type="secondary" style={{ fontSize: "12px" }}>
-                              {repositoryInfo.owner?.type || "User"}
-                            </Text>
-                          </div>
-                        </Space>
-                      </div>
-                    </Col>
-
-                    <Col xs={24} sm={12} lg={8}>
-                      <div
-                        style={{
-                          padding: "16px",
-                          background: "#fafafa",
-                          borderRadius: "8px",
-                          height: "100%",
-                        }}
-                      >
-                        <div style={{ marginBottom: "12px" }}>
-                          <SettingOutlined
-                            style={{ color: "#1890ff", marginRight: "8px" }}
-                          />
-                          <Text strong style={{ color: "#262626" }}>
-                            Repository Settings
-                          </Text>
-                        </div>
-                        <Space
-                          direction="vertical"
-                          size="small"
-                          style={{ width: "100%" }}
-                        >
-                          <div>
-                            <Tag
-                              color={
-                                repositoryInfo.private ? "orange" : "green"
-                              }
-                              style={{ marginRight: "8px" }}
-                            >
-                              {repositoryInfo.private
-                                ? "🔒 Private"
-                                : "🌍 Public"}
-                            </Tag>
-                          </div>
-                          <div>
-                            <Tag
-                              color={repositoryInfo.fork ? "purple" : "blue"}
-                            >
-                              {repositoryInfo.fork ? "🍴 Fork" : "📚 Original"}
-                            </Tag>
-                          </div>
-                          {repositoryInfo.archived && (
-                            <div>
-                              <Tag color="red">📦 Archived</Tag>
-                            </div>
-                          )}
-                          {repositoryInfo.is_template && (
-                            <div>
-                              <Tag color="cyan">📋 Template</Tag>
-                            </div>
-                          )}
-                        </Space>
-                      </div>
-                    </Col>
-
-                    <Col xs={24} sm={12} lg={8}>
-                      <div
-                        style={{
-                          padding: "16px",
-                          background: "#fafafa",
-                          borderRadius: "8px",
-                          height: "100%",
-                        }}
-                      >
-                        <div style={{ marginBottom: "12px" }}>
-                          <CalendarOutlined
-                            style={{ color: "#1890ff", marginRight: "8px" }}
-                          />
-                          <Text strong style={{ color: "#262626" }}>
-                            Timeline
-                          </Text>
-                        </div>
-                        <Space
-                          direction="vertical"
-                          size="small"
-                          style={{ width: "100%" }}
-                        >
-                          <div>
-                            <Text type="secondary" style={{ fontSize: "12px" }}>
-                              Created:
-                            </Text>
-                            <br />
-                            <Text style={{ fontWeight: "500" }}>
-                              {new Date(
-                                repositoryInfo.created_at
-                              ).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </Text>
-                          </div>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: "12px" }}>
-                              Last Updated:
-                            </Text>
-                            <br />
-                            <Text style={{ fontWeight: "500" }}>
-                              {new Date(
-                                repositoryInfo.updated_at
-                              ).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </Text>
-                          </div>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: "12px" }}>
-                              Last Push:
-                            </Text>
-                            <br />
-                            <Text style={{ fontWeight: "500" }}>
-                              {new Date(
-                                repositoryInfo.pushed_at
-                              ).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </Text>
-                          </div>
-                        </Space>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  {/* Features Section */}
-                  <Row gutter={[24, 16]} style={{ marginTop: 24 }}>
-                    <Col span={24}>
-                      <div
-                        style={{
-                          padding: "16px",
-                          background: "#fafafa",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        <div style={{ marginBottom: "12px" }}>
-                          <CheckCircleOutlined
-                            style={{ color: "#52c41a", marginRight: "8px" }}
-                          />
-                          <Text strong style={{ color: "#262626" }}>
-                            Repository Features
-                          </Text>
-                        </div>
-                        <Space wrap>
-                          {repositoryInfo.has_issues && (
-                            <Tag color="blue">🐛 Issues</Tag>
-                          )}
-                          {repositoryInfo.has_projects && (
-                            <Tag color="purple">📋 Projects</Tag>
-                          )}
-                          {repositoryInfo.has_wiki && (
-                            <Tag color="green">📖 Wiki</Tag>
-                          )}
-                          {repositoryInfo.has_pages && (
-                            <Tag color="orange">📄 Pages</Tag>
-                          )}
-                          {repositoryInfo.has_discussions && (
-                            <Tag color="cyan">💬 Discussions</Tag>
-                          )}
-                          {repositoryInfo.has_downloads && (
-                            <Tag color="gold">⬇️ Downloads</Tag>
-                          )}
-                          {repositoryInfo.allow_forking && (
-                            <Tag color="magenta">🍴 Forkable</Tag>
-                          )}
-                          <Tag color="geekblue">
-                            🌿 {repositoryInfo.default_branch || "main"}
-                          </Tag>
-                        </Space>
-                      </div>
-                    </Col>
-                  </Row>
-                </Card>
-              </Col>
-            </Row>
-          )}
-
           <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
             {/* Impacted Modules */}
             <Col span={24}>
@@ -1857,14 +1703,161 @@ const PRAnalysis: React.FC = () => {
                             {module.riskLevel}
                           </Tag>
                         </div>
+
+                        {/* Component Type Badge */}
+                        {module.componentType && (
+                          <div style={{ marginBottom: 8 }}>
+                            <Tag color="blue" style={{ fontSize: "11px" }}>
+                              📦 {module.componentType}
+                            </Tag>
+                          </div>
+                        )}
+
                         <Text type="secondary" style={{ fontSize: "14px" }}>
                           {module.description}
                         </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: "13px" }}>
-                          <strong>Dependencies:</strong>{" "}
-                          {module.dependencies.join(", ")}
-                        </Text>
+
+                        {/* Business Impact Section */}
+                        {module.businessImpact && (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              padding: "8px",
+                              backgroundColor: "#f8f9fa",
+                              borderRadius: "4px",
+                              borderLeft: "3px solid #1890ff",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: "500",
+                                color: "#1890ff",
+                              }}
+                            >
+                              📊 Business Impact:
+                            </Text>
+                            <div style={{ marginTop: 4 }}>
+                              <Text
+                                style={{ fontSize: "12px", color: "#595959" }}
+                              >
+                                {module.businessImpact}
+                              </Text>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* File Path Section */}
+                        {module.filePath && (
+                          <div style={{ marginTop: 8 }}>
+                            <Text type="secondary" style={{ fontSize: "11px" }}>
+                              <strong>📁 File:</strong>
+                            </Text>
+                            <div
+                              style={{
+                                marginTop: 2,
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                backgroundColor: "#f5f5f5",
+                                padding: "4px 6px",
+                                borderRadius: "3px",
+                              }}
+                            >
+                              {module.filePath}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Show affected files if available */}
+                        {module.affectedFiles &&
+                          module.affectedFiles.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: "12px" }}
+                              >
+                                <strong>
+                                  Affected Files ({module.affectedFiles.length}
+                                  ):
+                                </strong>
+                              </Text>
+                              <div style={{ marginTop: 4 }}>
+                                {module.affectedFiles
+                                  .slice(0, 3)
+                                  .map((file, fileIndex) => (
+                                    <Tag
+                                      key={fileIndex}
+                                      style={{
+                                        fontSize: "10px",
+                                        margin: "2px",
+                                      }}
+                                    >
+                                      {file.split("/").pop() || file}
+                                    </Tag>
+                                  ))}
+                                {module.affectedFiles.length > 3 && (
+                                  <Tag
+                                    style={{ fontSize: "10px", margin: "2px" }}
+                                  >
+                                    +{module.affectedFiles.length - 3} more
+                                  </Tag>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Show dependencies if available */}
+                        {module.dependencies &&
+                          module.dependencies.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: "12px" }}
+                              >
+                                <strong>Dependencies:</strong>{" "}
+                                {module.dependencies.slice(0, 2).join(", ")}
+                                {module.dependencies.length > 2 &&
+                                  ` +${module.dependencies.length - 2} more`}
+                              </Text>
+                            </div>
+                          )}
+
+                        {/* Show risk factors if available */}
+                        {module.riskFactors &&
+                          module.riskFactors.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: "12px" }}
+                              >
+                                <strong>Risk Factors:</strong>
+                              </Text>
+                              <div style={{ marginTop: 4 }}>
+                                {module.riskFactors
+                                  .slice(0, 2)
+                                  .map((factor, factorIndex) => (
+                                    <Tag
+                                      key={factorIndex}
+                                      color="red"
+                                      style={{
+                                        fontSize: "10px",
+                                        margin: "2px",
+                                      }}
+                                    >
+                                      {factor}
+                                    </Tag>
+                                  ))}
+                                {module.riskFactors.length > 2 && (
+                                  <Tag
+                                    color="red"
+                                    style={{ fontSize: "10px", margin: "2px" }}
+                                  >
+                                    +{module.riskFactors.length - 2} more
+                                  </Tag>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                         {/* Show additional metrics if available */}
                         {module.metrics && (
@@ -1876,15 +1869,54 @@ const PRAnalysis: React.FC = () => {
                               borderTop: "1px solid #f0f0f0",
                             }}
                           >
-                            <Text type="secondary">
-                              <strong>Lines:</strong>{" "}
-                              {module.metrics.linesChanged} |{" "}
-                              <strong>Functions:</strong>{" "}
-                              {module.metrics.functionsModified} |{" "}
-                              <strong>Coverage:</strong>{" "}
-                              {module.metrics.testCoverageImpact > 0 ? "+" : ""}
-                              {module.metrics.testCoverageImpact}%
-                            </Text>
+                            <Row gutter={[8, 4]}>
+                              <Col span={8}>
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "11px" }}
+                                >
+                                  <strong>Lines:</strong>
+                                  <br />
+                                  <span style={{ color: "#1890ff" }}>
+                                    {module.metrics.linesChanged}
+                                  </span>
+                                </Text>
+                              </Col>
+                              <Col span={8}>
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "11px" }}
+                                >
+                                  <strong>Functions:</strong>
+                                  <br />
+                                  <span style={{ color: "#722ed1" }}>
+                                    {module.metrics.functionsModified}
+                                  </span>
+                                </Text>
+                              </Col>
+                              <Col span={8}>
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "11px" }}
+                                >
+                                  <strong>Coverage:</strong>
+                                  <br />
+                                  <span
+                                    style={{
+                                      color:
+                                        module.metrics.testCoverageImpact >= 0
+                                          ? "#52c41a"
+                                          : "#ff4d4f",
+                                    }}
+                                  >
+                                    {module.metrics.testCoverageImpact > 0
+                                      ? "+"
+                                      : ""}
+                                    {module.metrics.testCoverageImpact}%
+                                  </span>
+                                </Text>
+                              </Col>
+                            </Row>
                           </div>
                         )}
 
@@ -1892,14 +1924,32 @@ const PRAnalysis: React.FC = () => {
                         {module.confidence && (
                           <div
                             className="module-confidence"
-                            style={{ marginTop: 4 }}
+                            style={{ marginTop: 8, textAlign: "center" }}
                           >
-                            <Text type="secondary">
-                              <strong>Confidence:</strong>{" "}
-                              {Math.round(module.confidence * 100)}%
+                            <Progress
+                              type="circle"
+                              size={40}
+                              percent={Math.round(module.confidence * 100)}
+                              strokeColor="#52c41a"
+                              format={(percent) => (
+                                <span style={{ fontSize: "10px" }}>
+                                  {percent}%
+                                </span>
+                              )}
+                            />
+                            <Text
+                              type="secondary"
+                              style={{
+                                fontSize: "10px",
+                                display: "block",
+                                marginTop: 2,
+                              }}
+                            >
+                              Confidence
                             </Text>
                           </div>
                         )}
+
                       </Card>
                     </Col>
                   ))}
