@@ -42,6 +42,46 @@ Or using Maven:
 mvn spring-boot:run
 ```
 
+## Docker Support
+
+This application can be containerized for easier deployment and consistency across environments.
+
+### Building the Docker Image
+
+```bash
+docker build -t s3-storage-api:latest .
+```
+
+### Running with Docker
+
+```bash
+docker run -d -p 8080:8080 \
+  -e AWS_S3_REGION=ap-south-1 \
+  -e AWS_S3_BUCKET_NAME=sentience-and-sensibility \
+  -e AWS_ACCESS_KEY_ID=your-access-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret-key \
+  --name s3-storage-api \
+  s3-storage-api:latest
+```
+
+### Using Docker Compose
+
+For local development with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+For local testing with LocalStack (mock S3):
+
+```bash
+# Uncomment the LocalStack service in docker-compose.yml first
+docker-compose up -d
+
+# Create a test bucket in LocalStack
+aws --endpoint-url=http://localhost:4566 s3 mb s3://your-bucket-name
+```
+
 ## API Endpoints
 
 ### Store Code Data
