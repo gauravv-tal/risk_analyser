@@ -217,6 +217,9 @@ const PRAnalysis: React.FC = () => {
   // API files changed state (derived from API response)
   const [apiFilesChanged, setApiFilesChanged] = useState<any[]>([]);
 
+  // Raw test cases data from API response
+  const [rawTestCasesData, setRawTestCasesData] = useState<any[]>([]);
+
   // GitHub API files changed state (directly from GitHub)
   const [githubFilesChanged, setGithubFilesChanged] = useState<any[]>([]);
   const [githubError, setGithubError] = useState<string>("");
@@ -323,7 +326,7 @@ const PRAnalysis: React.FC = () => {
 
       const filesMap = new Map<string, any>();
 
-      rawApiData.data.forEach((item: any, index: number) => {
+      rawApiData.data.files.forEach((item: any, index: number) => {
         const fileName = item.id;
         if (fileName && !filesMap.has(fileName)) {
           // Create file change entry based on available API data
@@ -543,7 +546,7 @@ const PRAnalysis: React.FC = () => {
       // Fallback: Extract file names from raw API data (id field contains file names)
       const fileMap = new Map<string, any>();
 
-      rawApiData.data.forEach((item: any) => {
+      rawApiData.data.files.forEach((item: any) => {
         const fileName = item.id;
         if (fileName && !fileMap.has(fileName)) {
           const moduleInfo = createModuleFromFileName(fileName);
@@ -645,6 +648,7 @@ const PRAnalysis: React.FC = () => {
         }
 
         const results = await Promise.allSettled(apiCalls);
+        console.log("api results", results);
         const [
           testRecommendationsData,
           summaryData,
@@ -703,6 +707,64 @@ const PRAnalysis: React.FC = () => {
             testRecommendationsResult.testRecommendations
           );
 
+          console.log(
+            "before--- testRecommendationsResult",
+            testRecommendationsResult
+          );
+          // Store raw test cases data from API response for Test Cases section
+          if (testRecommendationsResult.rawApiData?.data?.files) {
+            setRawTestCasesData(
+              testRecommendationsResult.rawApiData.data.files
+            );
+            console.log("🔧 RAW API RESPONSE DEBUG:");
+            console.log(
+              "Full API Response:",
+              testRecommendationsResult.rawApiData
+            );
+            console.log(
+              "Files Array:",
+              testRecommendationsResult.rawApiData.data.files
+            );
+            console.log(
+              "Number of files in API response:",
+              testRecommendationsResult.rawApiData.data.files.length
+            );
+            console.log(
+              "Files details:",
+              testRecommendationsResult.rawApiData.data.files.map(
+                (file: any, index: number) => ({
+                  index,
+                  id: file.id,
+                  hasTestCases: !!file.testCases,
+                  hasContent: !!file.content,
+                  hasLegacyTestCases: !!file.test_cases,
+                })
+              )
+            );
+          } else if (testRecommendationsResult.rawApiData?.data) {
+            // Fallback for legacy format
+            setRawTestCasesData(testRecommendationsResult.rawApiData.data);
+            console.log("🔧 RAW API RESPONSE DEBUG (Legacy Format):");
+            console.log(
+              "Full API Response:",
+              testRecommendationsResult.rawApiData
+            );
+            console.log(
+              "Data Array:",
+              testRecommendationsResult.rawApiData.data
+            );
+            console.log(
+              "Number of items in API response:",
+              testRecommendationsResult.rawApiData.data.length
+            );
+          } else {
+            console.log(
+              "⚠️ No raw API data found in response:",
+              testRecommendationsResult
+            );
+            setRawTestCasesData([]);
+          }
+
           // Check for affected_components in the API response first
           let impactedModules: ImpactedModule[] = [];
 
@@ -749,6 +811,7 @@ const PRAnalysis: React.FC = () => {
           setApiTestRecommendations([]);
           setApiImpactedModules([]);
           setApiFilesChanged([]);
+          setRawTestCasesData([]);
           message.info(`No test recommendations found for PR-${prId}`);
         }
 
@@ -803,6 +866,7 @@ const PRAnalysis: React.FC = () => {
         setApiTestRecommendations([]);
         setApiImpactedModules([]);
         setApiFilesChanged([]);
+        setRawTestCasesData([]);
         setGithubFilesChanged([]);
         setRepositoryInfo(null);
         setPrSummary(null);
@@ -2326,561 +2390,162 @@ const PRAnalysis: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Comprehensive Test Recommendations Section */}
-          <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
-            <Col span={24}>
-              <Card>
-                <Title level={3} style={{ marginBottom: 8, fontSize: "24px" }}>
-                  AI-Generated Test Recommendations
-                  {loadingTestRecommendations && (
+          {/* Test Cases Section - From API Response */}
+          {rawTestCasesData.length > 0 && (
+            <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
+              <Col span={24}>
+                <Card>
+                  <Title
+                    level={3}
+                    style={{ marginBottom: 8, fontSize: "24px" }}
+                  >
+                    📝 Test Cases
                     <span
                       style={{
                         marginLeft: 12,
                         fontSize: "14px",
-                        color: "#1890ff",
+                        color: "#52c41a",
+                        fontWeight: "normal",
                       }}
                     >
-                      Loading from API...
+                      {rawTestCasesData.length} file
+                      {rawTestCasesData.length !== 1 ? "s" : ""} from
+                      /api/v1/retrieve
                     </span>
-                  )}
-                </Title>
-                <Paragraph
-                  type="secondary"
-                  style={{ marginBottom: 24, fontSize: "16px" }}
-                >
-                  {loadingTestRecommendations ? (
-                    <>
-                      <span>🔄 Calling /api/v1/retrieve endpoint...</span>
-                    </>
-                  ) : (
-                    <>
-                      Based on your PR changes, here are intelligent test
-                      recommendations to ensure code quality and prevent
-                      regressions.
-                      {apiTestRecommendations.length > 0 && (
-                        <span style={{ color: "#52c41a", marginLeft: 8 }}>
-                          ✅ API call completed (using mock data while backend
-                          deploys)
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Paragraph>
+                  </Title>
+                  <Paragraph
+                    type="secondary"
+                    style={{ marginBottom: 24, fontSize: "16px" }}
+                  >
+                    Test cases retrieved from your repository for this PR. These
+                    are the actual test files that will help ensure code quality
+                    and prevent regressions.
+                  </Paragraph>
 
-                {/* Test Search */}
-                <Card style={{ marginBottom: 24 }}>
-                  <Search
-                    placeholder="Search test recommendations..."
-                    prefix={<SearchOutlined />}
-                    size="large"
-                    value={testSearchTerm}
-                    onChange={(e) => setTestSearchTerm(e.target.value)}
+                  <Collapse
+                    defaultActiveKey={
+                      rawTestCasesData.length <= 3
+                        ? rawTestCasesData.map((_, index) => index.toString())
+                        : ["0"]
+                    }
                     style={{ marginBottom: 16 }}
-                  />
-                </Card>
+                  >
+                    {rawTestCasesData.map((testFile: any, index: number) => {
+                      const fileName = testFile.id || `test-file-${index + 1}`;
+                      const testContent =
+                        testFile.testCases ||
+                        testFile.content ||
+                        testFile.test_cases ||
+                        "";
+                      const fileDisplayName =
+                        fileName.split("/").pop() || fileName;
 
-                {/* Test Recommendations Controls */}
-                <Card
-                  className="test-recommendation-controls"
-                  style={{ marginBottom: 16 }}
-                >
-                  <Row gutter={[16, 16]} align="middle">
-                    <Col xs={24} sm={12} md={8}>
-                      <div>
-                        <Text strong style={{ marginRight: 8 }}>
-                          Sort by:
-                        </Text>
-                        <Select
-                          value={sortBy}
-                          onChange={setSortBy}
-                          style={{ width: 120 }}
-                          size="small"
-                        >
-                          <Select.Option value="priority">
-                            Priority
-                          </Select.Option>
-                          <Select.Option value="confidence">
-                            Confidence
-                          </Select.Option>
-                          <Select.Option value="estimatedTime">
-                            Time
-                          </Select.Option>
-                          <Select.Option value="coverage">
-                            Coverage Gap
-                          </Select.Option>
-                        </Select>
-                      </div>
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                      <div>
-                        <Text strong style={{ marginRight: 8 }}>
-                          Order:
-                        </Text>
-                        <Select
-                          value={sortOrder}
-                          onChange={setSortOrder}
-                          style={{ width: 100 }}
-                          size="small"
-                        >
-                          <Select.Option value="desc">
-                            High to Low
-                          </Select.Option>
-                          <Select.Option value="asc">Low to High</Select.Option>
-                        </Select>
-                      </div>
-                    </Col>
-                    <Col xs={24} sm={24} md={8}>
-                      <div style={{ textAlign: "right" }}>
-                        <Text type="secondary">
-                          Showing {paginatedTestRecommendations.length} of{" "}
-                          {filteredAndSortedTestRecommendations.length}{" "}
-                          recommendations
-                        </Text>
-                      </div>
-                    </Col>
-                  </Row>
-                </Card>
-
-                {/* Test Type Summary Cards - Only Unit Tests for now */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                  <Col xs={24} sm={12} lg={8}>
-                    <Card
-                      style={{
-                        textAlign: "center",
-                        borderColor: "#1890ff",
-                        backgroundColor: "#f6ffed",
-                      }}
-                    >
-                      <ExclamationCircleOutlined
-                        style={{
-                          fontSize: 32,
-                          color: "#1890ff",
-                          marginBottom: 8,
-                        }}
-                      />
-                      <Title level={4} style={{ margin: 0 }}>
-                        Unit Tests
-                      </Title>
-                      <Title level={2} style={{ margin: 0, color: "#1890ff" }}>
-                        {getCountByType("unit")}
-                      </Title>
-                    </Card>
-                  </Col>
-                  {/* Hidden for now - Integration and E2E tests */}
-                  {/* 
-                  <Col xs={24} sm={8}>
-                    <Card
-                      hoverable
-                      style={{
-                        textAlign: "center",
-                        borderColor:
-                          activeTestTab === "integration"
-                            ? "#722ed1"
-                            : undefined,
-                        backgroundColor:
-                          activeTestTab === "integration"
-                            ? "#f9f0ff"
-                            : undefined,
-                      }}
-                      onClick={() =>
-                        setActiveTestTab(
-                          activeTestTab === "integration"
-                            ? "all"
-                            : "integration"
-                        )
+                      // Extract test framework and language
+                      let language = "javascript";
+                      let framework = "Unknown";
+                      if (
+                        testContent.includes("describe(") &&
+                        testContent.includes("it(")
+                      ) {
+                        framework = "Jest";
+                        language = fileName.includes(".ts")
+                          ? "typescript"
+                          : "javascript";
+                      } else if (testContent.includes("@Test")) {
+                        framework = "JUnit";
+                        language = "java";
                       }
-                    >
-                      <ApiOutlined
-                        style={{
-                          fontSize: 32,
-                          color: "#722ed1",
-                          marginBottom: 8,
-                        }}
-                      />
-                      <Title level={4} style={{ margin: 0 }}>
-                        Integration Tests
-                      </Title>
-                      <Title level={2} style={{ margin: 0, color: "#722ed1" }}>
-                        {getCountByType("integration")}
-                      </Title>
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Card
-                      hoverable
-                      style={{
-                        textAlign: "center",
-                        borderColor:
-                          activeTestTab === "e2e" ? "#52c41a" : undefined,
-                        backgroundColor:
-                          activeTestTab === "e2e" ? "#f6ffed" : undefined,
-                      }}
-                      onClick={() =>
-                        setActiveTestTab(
-                          activeTestTab === "e2e" ? "all" : "e2e"
-                        )
-                      }
-                    >
-                      <GlobalOutlined
-                        style={{
-                          fontSize: 32,
-                          color: "#52c41a",
-                          marginBottom: 8,
-                        }}
-                      />
-                      <Title level={4} style={{ margin: 0 }}>
-                        E2E Tests
-                      </Title>
-                      <Title level={2} style={{ margin: 0, color: "#52c41a" }}>
-                        {getCountByType("e2e")}
-                      </Title>
-                    </Card>
-                  </Col>
-                  */}
-                </Row>
 
-                {/* Filter Tabs - Hidden for now (only showing unit tests) */}
-                {/* 
-                <Tabs
-                  activeKey={activeTestTab}
-                  onChange={setActiveTestTab}
-                  style={{ marginBottom: 24 }}
-                  items={[
-                    {
-                      key: "all",
-                      label: (
-                        <Badge count={getCountByType("all")} offset={[10, 0]}>
-                          ALL ({getCountByType("all")})
-                        </Badge>
-                      ),
-                    },
-                    {
-                      key: "unit",
-                      label: (
-                        <Badge count={getCountByType("unit")} offset={[10, 0]}>
-                          UNIT ({getCountByType("unit")})
-                        </Badge>
-                      ),
-                    },
-                    {
-                      key: "integration",
-                      label: (
-                        <Badge
-                          count={getCountByType("integration")}
-                          offset={[10, 0]}
-                        >
-                          INTEGRATION ({getCountByType("integration")})
-                        </Badge>
-                      ),
-                    },
-                    {
-                      key: "e2e",
-                      label: (
-                        <Badge count={getCountByType("e2e")} offset={[10, 0]}>
-                          E2E ({getCountByType("e2e")})
-                        </Badge>
-                      ),
-                    },
-                  ]}
-                />
-                */}
+                      // Count test cases
+                      const testCaseMatches =
+                        testContent.match(/it\s*\(/g) ||
+                        testContent.match(/@Test/g) ||
+                        [];
+                      const testCaseCount = testCaseMatches.length;
 
-                {/* Detailed Test Recommendations */}
-                <div className="test-recommendations-container">
-                  {paginatedTestRecommendations.map((item) => (
-                    <Card
-                      key={item.id}
-                      style={{ marginBottom: 16 }}
-                      className={`test-recommendation-card test-recommendation-item test-recommendation-priority-${item.priority}`}
-                      title={
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <div
-                            style={{ display: "flex", alignItems: "center" }}
-                          >
-                            {getTypeIcon(item.type)}
-                            <Text
-                              strong
-                              style={{ marginLeft: 8, fontSize: "16px" }}
-                            >
-                              {item.title}
-                            </Text>
-                          </div>
-                          <Space>
-                            <Tag
-                              color={getTypeColor(item.type)}
-                              style={{ fontSize: "14px" }}
-                            >
-                              {item.type}
-                            </Tag>
-                            <Tag
-                              color={getPriorityColor(item.priority)}
-                              style={{ fontSize: "14px" }}
-                            >
-                              {item.priority}
-                            </Tag>
-                            <Text type="secondary" style={{ fontSize: "14px" }}>
-                              <ClockCircleOutlined style={{ marginRight: 4 }} />
-                              {item.estimatedTime}
-                            </Text>
-                          </Space>
-                        </div>
-                      }
-                    >
-                      <Paragraph style={{ marginBottom: 16, fontSize: "16px" }}>
-                        {item.description}
-                      </Paragraph>
-
-                      {/* Enhanced Test Information */}
-                      <Row gutter={[16, 8]} style={{ marginBottom: 16 }}>
-                        {item.confidence && (
-                          <Col xs={24} sm={12} md={8}>
-                            <div className="test-summary-badge">
-                              <CheckCircleOutlined
-                                style={{ color: "#52c41a" }}
-                              />
-                              <span>
-                                Confidence: {Math.round(item.confidence * 100)}%
-                              </span>
-                            </div>
-                          </Col>
-                        )}
-                        {item.coverage && (
-                          <Col xs={24} sm={12} md={8}>
-                            <div className="test-summary-badge">
-                              <WarningOutlined style={{ color: "#faad14" }} />
-                              <span>Coverage Gap: {item.coverage.gap}%</span>
-                            </div>
-                          </Col>
-                        )}
-                        {item.estimatedEffort && (
-                          <Col xs={24} sm={12} md={8}>
-                            <div className="test-summary-badge">
-                              <ClockCircleOutlined
-                                style={{ color: "#1890ff" }}
-                              />
-                              <span>
-                                Effort: {item.estimatedEffort.hours}h (
-                                {item.estimatedEffort.complexity})
-                              </span>
-                            </div>
-                          </Col>
-                        )}
-                      </Row>
-
-                      {/* Test Categories */}
-                      {item.testCategories &&
-                        item.testCategories.length > 0 && (
-                          <div style={{ marginBottom: 16 }}>
-                            <Text
-                              strong
-                              style={{ marginRight: 8, fontSize: "14px" }}
-                            >
-                              Categories:
-                            </Text>
-                            {item.testCategories.map((category, index) => (
-                              <Tag
-                                key={index}
-                                color="blue"
-                                style={{ marginBottom: 4 }}
-                              >
-                                {category
-                                  .replace(/-/g, " ")
-                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
-                              </Tag>
-                            ))}
-                          </div>
-                        )}
-
-                      {/* Rationale */}
-                      {item.rationale && (
-                        <div
-                          style={{
-                            marginBottom: 16,
-                            padding: "8px 12px",
-                            backgroundColor: "#f6f8fa",
-                            borderRadius: "4px",
-                            borderLeft: "3px solid #1890ff",
-                          }}
-                        >
-                          <Text
-                            type="secondary"
-                            style={{ fontSize: "14px", fontStyle: "italic" }}
-                          >
-                            <strong>AI Rationale:</strong> {item.rationale}
-                          </Text>
-                        </div>
-                      )}
-
-                      <Collapse ghost>
+                      return (
                         <Panel
                           header={
-                            <Button
-                              type="link"
-                              style={{ padding: 0, fontSize: 16 }}
-                            >
-                              View Test Code <DownOutlined />
-                            </Button>
-                          }
-                          key="1"
-                        >
-                          <Card
-                            size="small"
-                            className="test-code-block"
-                            style={{
-                              backgroundColor: "#f6f8fa",
-                              border: "1px solid #e1e4e8",
-                            }}
-                          >
-                            <div style={{ marginBottom: 8 }}>
-                              <Tag color="blue">{item.testCode.language}</Tag>
-                              <Tag color="green">{item.testCode.framework}</Tag>
-                            </div>
-                            <pre
+                            <div
                               style={{
-                                margin: 0,
-                                fontSize: 14,
-                                fontFamily:
-                                  'Monaco, Menlo, "Ubuntu Mono", monospace',
-                                overflow: "auto",
-                                whiteSpace: "pre-wrap",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
                               }}
                             >
-                              {item.testCode.code}
-                            </pre>
-                          </Card>
-                        </Panel>
-                      </Collapse>
-                    </Card>
-                  ))}
-                </div>
-
-                {filteredAndSortedTestRecommendations.length === 0 && (
-                  <Card style={{ textAlign: "center", padding: 40 }}>
-                    {!analyzedPR ? (
-                      <div>
-                        <Text type="secondary" style={{ fontSize: "16px" }}>
-                          Enter a PR URL and click "Analyze PR" to get
-                          AI-generated test recommendations.
-                        </Text>
-                      </div>
-                    ) : loadingTestRecommendations ? (
-                      <div>
-                        <Text type="secondary" style={{ fontSize: "16px" }}>
-                          🔄 Loading test recommendations from API...
-                        </Text>
-                      </div>
-                    ) : (
-                      <div>
-                        <Text
-                          type="secondary"
-                          style={{
-                            fontSize: "16px",
-                            marginBottom: 8,
-                            display: "block",
-                          }}
+                              <div>
+                                <Text strong style={{ fontSize: "16px" }}>
+                                  {fileDisplayName}
+                                </Text>
+                                <div style={{ marginTop: 4 }}>
+                                  <Tag color="blue" style={{ marginRight: 8 }}>
+                                    {framework}
+                                  </Tag>
+                                  <Tag color="green">
+                                    {testCaseCount} test
+                                    {testCaseCount !== 1 ? "s" : ""}
+                                  </Tag>
+                                  <Text
+                                    type="secondary"
+                                    style={{ marginLeft: 8, fontSize: "12px" }}
+                                  >
+                                    {fileName}
+                                  </Text>
+                                </div>
+                              </div>
+                            </div>
+                          }
+                          key={index.toString()}
                         >
-                          No test recommendations available from API
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: "14px" }}>
-                          {testSearchTerm
-                            ? `No results match your search criteria: "${testSearchTerm}"`
-                            : "The API returned no test recommendations for this PR"}
-                        </Text>
-                      </div>
-                    )}
-                  </Card>
-                )}
-
-                {/* Bottom Pagination */}
-                {filteredAndSortedTestRecommendations.length > pageSize && (
-                  <Card style={{ marginTop: 16, textAlign: "center" }}>
-                    <Pagination
-                      current={currentPage}
-                      pageSize={pageSize}
-                      total={filteredAndSortedTestRecommendations.length}
-                      onChange={(page) => setCurrentPage(page)}
-                      showSizeChanger={true}
-                      showQuickJumper={
-                        filteredAndSortedTestRecommendations.length > 50
-                      }
-                      showTotal={(total, range) =>
-                        `${range[0]}-${range[1]} of ${total} recommendations`
-                      }
-                      onShowSizeChange={(current, size) => {
-                        setPageSize(size);
-                        setCurrentPage(1);
-                      }}
-                      pageSizeOptions={["5", "10", "20", "50"]}
-                    />
-                  </Card>
-                )}
-              </Card>
-            </Col>
-          </Row>
-
-          <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
-            {/* Historical Risk Analysis */}
-            <Col span={24}>
-              <Card
-                title={
-                  <span style={{ fontSize: "18px" }}>
-                    Historical Risk Analysis
-                  </span>
-                }
-              >
-                <Timeline>
-                  {mockHistoricalData.map((data, index) => (
-                    <Timeline.Item
-                      key={index}
-                      color={
-                        data.riskScore >= 8
-                          ? "red"
-                          : data.riskScore >= 6
-                          ? "orange"
-                          : "green"
-                      }
-                      dot={
-                        data.riskScore >= 8 ? (
-                          <WarningOutlined
-                            style={{ color: "red", fontSize: "16px" }}
-                          />
-                        ) : (
-                          <CheckCircleOutlined
-                            style={{ color: "green", fontSize: "16px" }}
-                          />
-                        )
-                      }
-                    >
-                      <div>
-                        <Text strong style={{ fontSize: "15px" }}>
-                          {data.date}
-                        </Text>
-                        <br />
-                        <Text style={{ fontSize: "15px" }}>
-                          Risk Score: {data.riskScore}/10
-                        </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: "14px" }}>
-                          {data.pullRequestCount} PRs, {data.hotfixCount}{" "}
-                          hotfixes
-                        </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: "13px" }}>
-                          {data.description}
-                        </Text>
-                      </div>
-                    </Timeline.Item>
-                  ))}
-                </Timeline>
-              </Card>
-            </Col>
-          </Row>
+                          <div style={{ marginTop: 16 }}>
+                            <Text
+                              strong
+                              style={{ marginBottom: 8, display: "block" }}
+                            >
+                              Test Code:
+                            </Text>
+                            <div
+                              style={{
+                                backgroundColor: "#f8f9fa",
+                                border: "1px solid #e9ecef",
+                                borderRadius: "6px",
+                                padding: "16px",
+                                fontFamily:
+                                  'Monaco, Menlo, "Ubuntu Mono", monospace',
+                                fontSize: "13px",
+                                lineHeight: "1.5",
+                                overflow: "auto",
+                                maxHeight: "400px",
+                              }}
+                            >
+                              <pre
+                                style={{ margin: 0, whiteSpace: "pre-wrap" }}
+                              >
+                                {testContent || "No test content available"}
+                              </pre>
+                            </div>
+                            {testContent && (
+                              <div
+                                style={{ marginTop: 12, textAlign: "right" }}
+                              >
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "12px" }}
+                                >
+                                  {testContent.split("\n").length} lines •{" "}
+                                  {language} • {framework}
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        </Panel>
+                      );
+                    })}
+                  </Collapse>
+                </Card>
+              </Col>
+            </Row>
+          )}
         </>
       )}
 

@@ -174,107 +174,27 @@ export const prAnalysisApi = {
         (error as any).response = { data };
         throw error;
       }
-
+      console.log("test data data", data);
       // Handle success response
       if (data.status === "success" && data.data) {
+        console.log("inside iffff");
         return this.transformApiResponseToUI(data);
       }
 
       // Fallback for unexpected response format
       throw new Error("Unexpected response format");
     } catch (error: any) {
-      console.log("⚠️ API call failed, using mock data:", error.message);
+      console.log("⚠️ API call failed:", error.message);
 
       // If it already has our expected format, re-throw
       if (error.response?.data) {
         throw error;
       }
 
-      // API is not deployed yet - return mock data in the expected format
-      const mockApiResponse = {
-        status: "success",
-        message: "Code files retrieved successfully",
-        data: [
-          {
-            id: "PaymentProcessor.java",
-            test_cases: `@Test
-public void testProcessPayment_ValidInput_Success() {
-    PaymentProcessor processor = new PaymentProcessor();
-    PaymentRequest request = new PaymentRequest(100.0, "USD", "valid-card");
-    
-    PaymentResult result = processor.processPayment(request);
-    
-    assertEquals(PaymentStatus.SUCCESS, result.getStatus());
-    assertNotNull(result.getTransactionId());
-}`,
-          },
-          {
-            id: "UserValidator.java",
-            test_cases: `@Test
-public void testValidateUser_InvalidEmail_ThrowsException() {
-    UserValidator validator = new UserValidator();
-    UserData invalidUser = new UserData("invalid-email", "password123");
-    
-    assertThrows(ValidationException.class, () -> {
-        validator.validateUser(invalidUser);
-    });
-}`,
-          },
-          {
-            id: "DatabaseConnection.java",
-            test_cases: `@Test
-public void testDatabaseConnection_FailureScenario_HandlesGracefully() {
-    DatabaseConnection connection = new DatabaseConnection("invalid-url");
-    
-    assertFalse(connection.isConnected());
-    assertThrows(ConnectionException.class, () -> {
-        connection.executeQuery("SELECT * FROM users");
-    });
-}`,
-          },
-        ],
-        // Mock affected_components in the format specified by the user
-        affected_components: [
-          {
-            file_path: "src/payment/PaymentProcessor.java",
-            component_name: "PaymentProcessor",
-            component_type: "Service",
-            summary_of_changes:
-              "Enhanced payment validation logic and added new transaction methods for improved security and error handling.",
-            business_impact:
-              "Critical payment processing improvements that enhance transaction security and reduce failed payments.",
-            criticality: "high",
-          },
-          {
-            file_path: "src/user/UserValidator.java",
-            component_name: "UserValidator",
-            component_type: "Validator",
-            summary_of_changes:
-              "Updated email validation regex patterns and added new validation rules for enhanced user input security.",
-            business_impact:
-              "Improves user registration flow and prevents invalid user data from entering the system.",
-            criticality: "medium",
-          },
-          {
-            file_path: "src/database/DatabaseConnection.java",
-            component_name: "DatabaseConnection",
-            component_type: "Configuration",
-            summary_of_changes:
-              "Modified connection pooling settings and added graceful error handling for database connectivity issues.",
-            business_impact:
-              "Enhances application stability and provides better database error recovery mechanisms.",
-            criticality: "high",
-          },
-        ],
-      };
-
-      console.log("🎭 Returning mock response in API format:", mockApiResponse);
-
-      // Simulate network delay for realistic experience
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Transform mock response to UI format
-      return this.transformApiResponseToUI(mockApiResponse);
+      // No mock data - throw the actual error so UI shows only real API data
+      throw new Error(
+        `Failed to retrieve test recommendations from /api/v1/retrieve: ${error.message}`
+      );
     }
   },
 
@@ -296,7 +216,7 @@ public void testDatabaseConnection_FailureScenario_HandlesGracefully() {
       }
 
       // Transform each API data item to TestRecommendation format
-      const testRecommendations = apiResponse.data.map(
+      const testRecommendations = apiResponse.data.files.map(
         (item: any, index: number) => {
           const fileName = item.id || `file-${index}`;
           const testCode = item.test_cases || "";
