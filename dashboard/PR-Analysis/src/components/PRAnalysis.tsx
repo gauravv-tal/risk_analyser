@@ -239,14 +239,14 @@ const PRAnalysis: React.FC = () => {
   const [sortOrder, setSortOrder] = useState("desc"); // asc, desc
 
   const getRiskColor = (score: number) => {
-    if (score >= 8) return "#ff4d4f";
-    if (score >= 6) return "#faad14";
+    if (score >= 4) return "#ff4d4f";
+    if (score >= 3) return "#faad14";
     return "#52c41a";
   };
 
   const getRiskLevel = (score: number) => {
-    if (score >= 8) return "High Risk";
-    if (score >= 6) return "Medium Risk";
+    if (score >= 4) return "High Risk";
+    if (score >= 3) return "Medium Risk";
     return "Low Risk";
   };
 
@@ -857,8 +857,35 @@ const PRAnalysis: React.FC = () => {
           setRepositoryInfo(null);
         }
 
-        // Set analyzed PR data (using mock data for now for other sections)
-        setAnalyzedPR(mockPullRequests[0]);
+        // Set analyzed PR data with real API data
+        let prData = mockPullRequests[0]; // Start with mock as base
+        
+        // Extract real data from summary API response if available
+        if (summaryData.status === "fulfilled" && summaryData.value?.data?.summaryData?.data) {
+          const apiData = summaryData.value.data.summaryData.data;
+          
+          // Extract risk score (convert string to number)
+          const riskScore = parseFloat(apiData.risk_assessment?.score) || mockPullRequests[0].riskScore;
+          
+          // Extract overall summary as description
+          const description = apiData.overall_summary || mockPullRequests[0].description;
+          
+          // Create updated PR data with real API values
+          prData = {
+            ...mockPullRequests[0],
+            riskScore: riskScore,
+            description: description,
+          };
+          
+          console.log("✅ Using real API data for risk assessment:", {
+            riskScore: riskScore,
+            description: description ? description.substring(0, 100) + "..." : "No description",
+          });
+        } else {
+          console.log("⚠️ Falling back to mock data for risk assessment");
+        }
+        
+        setAnalyzedPR(prData);
       } catch (error: any) {
         console.error("PR Analysis Error:", error);
 
@@ -1626,7 +1653,7 @@ const PRAnalysis: React.FC = () => {
                           margin: 0,
                         }}
                       >
-                        {analyzedPR.riskScore}/10
+                        {analyzedPR.riskScore*20}
                       </Title>
                       <Tag
                         color={getRiskColor(analyzedPR.riskScore)}
