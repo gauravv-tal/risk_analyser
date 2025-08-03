@@ -18,6 +18,8 @@ import {
   Switch,
   Spin,
   message,
+  Dropdown,
+  Menu,
 } from "antd";
 import {
   BugOutlined,
@@ -36,6 +38,7 @@ import {
   LinkOutlined,
   SettingOutlined,
   CalendarOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { githubApi } from "../services/githubApi";
 import { prAnalysisApi } from "../services/api";
@@ -172,9 +175,198 @@ const mockDashboardData = {
 
 const EnhancedDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedTimeRange, setSelectedTimeRange] = useState("7d");
+  const [selectedRelease, setSelectedRelease] = useState("v2.1.0");
   const [refreshing, setRefreshing] = useState(false);
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  // Update timestamp display every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render to update the "time ago" display
+      setUpdateTrigger((prev) => prev + 1);
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle release selection change
+  const handleReleaseChange = (value: string) => {
+    setSelectedRelease(value);
+    console.log(`📦 Selected Release: ${value}`);
+    // Here you could add logic to filter data by release version
+  };
+
+  // Format time since last update
+  const getTimeSinceUpdate = () => {
+    // Use updateTrigger to ensure recalculation (triggers re-render)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _ = updateTrigger; // This ensures the function recalculates when updateTrigger changes
+
+    const now = new Date();
+    const diffInMs = now.getTime() - lastUpdated.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+
+    if (diffInSeconds < 30) {
+      return "Updated just now";
+    } else if (diffInMinutes < 1) {
+      return "Updated recently";
+    } else if (diffInMinutes === 1) {
+      return "Updated 1 minute ago";
+    } else if (diffInMinutes < 60) {
+      return `Updated ${diffInMinutes} minutes ago`;
+    } else {
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours === 1) {
+        return "Updated 1 hour ago";
+      } else {
+        return `Updated ${diffInHours} hours ago`;
+      }
+    }
+  };
+
+  // Handle export functionality
+  const handleExport = () => {
+    exportData(recentPRs, "csv", "all");
+  };
+
+  // Handle export by release
+  const handleExportByRelease = () => {
+    exportData(recentPRs, "csv", selectedRelease);
+  };
+
+  // Handle JSON export
+  const handleExportJSON = () => {
+    exportData(recentPRs, "json", "all");
+  };
+
+  // Generic export function
+  const exportData = (
+    data: any[],
+    format: "csv" | "json",
+    releaseFilter: string
+  ) => {
+    try {
+      let filteredData = data;
+      let filenameSuffix =
+        releaseFilter === "all" ? "all-releases" : selectedRelease;
+
+      if (format === "csv") {
+        // Define CSV headers
+        const headers = [
+          "PR ID",
+          "Title",
+          "Author",
+          "Risk Level",
+          "Risk Score (%)",
+          "Additions",
+          "Deletions",
+          "Files Changed",
+          "Created Date",
+          "Status",
+          "Data Source",
+        ];
+
+        // Convert PR data to CSV rows
+        const csvRows = filteredData.map((pr) => [
+          pr.id || "",
+          `"${(pr.title || "").replace(/"/g, '""')}"`,
+          pr.author || "",
+          pr.status || "",
+          pr.riskScore || 0,
+          pr.additions || 0,
+          pr.deletions || 0,
+          pr.files || 0,
+          pr.created || "",
+          pr.state || "open",
+          pr.apiData?.hasApiData ? "Backend API" : "Calculated",
+        ]);
+
+        // Combine headers and rows
+        const csvContent = [headers, ...csvRows]
+          .map((row) => row.join(","))
+          .join("\n");
+
+        // Create and trigger download
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `pr-dashboard-${filenameSuffix}-${
+            new Date().toISOString().split("T")[0]
+          }.csv`
+        );
+        link.style.visibility = "hidden";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === "json") {
+        // Export as JSON
+        const jsonData = {
+          exportDate: new Date().toISOString(),
+          release: releaseFilter,
+          totalRecords: filteredData.length,
+          data: filteredData.map((pr) => ({
+            id: pr.id,
+            title: pr.title,
+            author: pr.author,
+            riskLevel: pr.status,
+            riskScore: pr.riskScore,
+            additions: pr.additions,
+            deletions: pr.deletions,
+            filesChanged: pr.files,
+            createdDate: pr.created,
+            status: pr.state,
+            dataSource: pr.apiData?.hasApiData ? "Backend API" : "Calculated",
+            apiData: pr.apiData,
+            githubData: pr.githubData,
+          })),
+        };
+
+        const jsonContent = JSON.stringify(jsonData, null, 2);
+        const blob = new Blob([jsonContent], {
+          type: "application/json;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `pr-dashboard-${filenameSuffix}-${
+            new Date().toISOString().split("T")[0]
+          }.json`
+        );
+        link.style.visibility = "hidden";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      message.success(
+        `📊 Exported ${
+          filteredData.length
+        } PRs as ${format.toUpperCase()} (${releaseFilter})`
+      );
+      console.log(
+        `📊 Export completed: ${
+          filteredData.length
+        } PRs as ${format.toUpperCase()} for ${releaseFilter}`
+      );
+    } catch (error) {
+      console.error("Export failed:", error);
+      message.error("Failed to export data. Please try again.");
+    }
+  };
 
   // GitHub PRs state
   const [recentPRs, setRecentPRs] = useState<any[]>([]);
@@ -224,15 +416,6 @@ const EnhancedDashboard: React.FC = () => {
         setRecentPRs(mockDashboardData.recentPRs);
 
         // Update GitHub API status based on error type
-        if (prResult.error.includes("rate limit")) {
-          setGitHubApiStatus((prev) => ({
-            ...prev,
-            rateLimitInfo: prResult.rateLimitInfo,
-            showSetupGuide: !prev.hasToken, // Show setup guide if no token
-          }));
-        }
-
-        // Enhanced error handling with specific guidance
         if (prResult.requiresAuth && !prResult.rateLimitInfo) {
           message.warning({
             content: (
@@ -315,7 +498,9 @@ const EnhancedDashboard: React.FC = () => {
           }));
         }
 
-        console.log(`🔄 Fetching detailed info for ${prResult.data.length} PRs to get file change statistics...`);
+        console.log(
+          `🔄 Fetching detailed info for ${prResult.data.length} PRs to get file change statistics...`
+        );
 
         // Fetch detailed PR information for each PR to get file change statistics
         // The list endpoint doesn't include additions, deletions, changed_files
@@ -323,11 +508,11 @@ const EnhancedDashboard: React.FC = () => {
           prResult.data.map(async (pr: any) => {
             try {
               const detailResult = await githubApi.getPullRequest(
-                "SayaliTal", 
-                "calorie-tracker", 
+                "SayaliTal",
+                "calorie-tracker",
                 pr.number
               );
-              
+
               if (detailResult.data) {
                 // Merge list data with detailed data
                 return {
@@ -338,11 +523,16 @@ const EnhancedDashboard: React.FC = () => {
                 };
               } else {
                 // If detailed fetch fails, use original PR data with estimated values
-                console.warn(`⚠️ Could not fetch detailed info for PR ${pr.number}, using list data only`);
+                console.warn(
+                  `⚠️ Could not fetch detailed info for PR ${pr.number}, using list data only`
+                );
                 return pr;
               }
             } catch (error) {
-              console.warn(`⚠️ Error fetching detailed info for PR ${pr.number}:`, error);
+              console.warn(
+                `⚠️ Error fetching detailed info for PR ${pr.number}:`,
+                error
+              );
               return pr; // Return original PR data as fallback
             }
           })
@@ -350,10 +540,15 @@ const EnhancedDashboard: React.FC = () => {
 
         // Process the results and extract successful PR data
         const successfulPRs = detailedPRs
-          .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
-          .map(result => result.value);
+          .filter(
+            (result): result is PromiseFulfilledResult<any> =>
+              result.status === "fulfilled"
+          )
+          .map((result) => result.value);
 
-        console.log(`✅ Successfully fetched detailed info for ${successfulPRs.length} PRs`);
+        console.log(
+          `✅ Successfully fetched detailed info for ${successfulPRs.length} PRs`
+        );
 
         // Transform GitHub PRs to dashboard format with API risk levels
         const transformedPRs = await Promise.all(
@@ -406,7 +601,9 @@ const EnhancedDashboard: React.FC = () => {
             console.log(
               `📊 PR ${pr.number} Changes: +${pr.additions || 0}/-${
                 pr.deletions || 0
-              } in ${pr.changed_files || 0} files (GitHub API with detailed fetch)`
+              } in ${
+                pr.changed_files || 0
+              } files (GitHub API with detailed fetch)`
             );
 
             return {
@@ -553,7 +750,9 @@ const EnhancedDashboard: React.FC = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchGitHubPRs(); // Refresh PRs from GitHub
+    setLastUpdated(new Date()); // Update the timestamp
     setRefreshing(false);
+    message.success("Dashboard refreshed successfully!");
   };
 
   // Calculate overview stats from real PR data with API-provided risk scores
@@ -776,10 +975,7 @@ const EnhancedDashboard: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               {getRiskTag(status, record.riskScore)}
               {record.apiData?.hasApiData ? (
-                <Tag
-                  color="blue"
-                  style={{ fontSize: "8px", padding: "0 3px" }}
-                >
+                <Tag color="blue" style={{ fontSize: "8px", padding: "0 3px" }}>
                   API
                 </Tag>
               ) : (
@@ -812,18 +1008,34 @@ const EnhancedDashboard: React.FC = () => {
         render: (record: any) => (
           <div style={{ minWidth: "110px" }}>
             {/* Main changes line - keep on single line */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "2px",
-              flexWrap: "nowrap",
-              whiteSpace: "nowrap"
-            }}>
-              <Text style={{ color: "#52c41a", fontWeight: "500", fontSize: "12px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "2px",
+                flexWrap: "nowrap",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#52c41a",
+                  fontWeight: "500",
+                  fontSize: "12px",
+                }}
+              >
                 +{record.additions || 0}
               </Text>
-              <Text type="secondary" style={{ margin: "0 1px" }}>/</Text>
-              <Text style={{ color: "#ff4d4f", fontWeight: "500", fontSize: "12px" }}>
+              <Text type="secondary" style={{ margin: "0 1px" }}>
+                /
+              </Text>
+              <Text
+                style={{
+                  color: "#ff4d4f",
+                  fontWeight: "500",
+                  fontSize: "12px",
+                }}
+              >
                 -{record.deletions || 0}
               </Text>
               {record.githubData?.url && (
@@ -834,14 +1046,14 @@ const EnhancedDashboard: React.FC = () => {
                     padding: "0 2px",
                     marginLeft: "3px",
                     lineHeight: "10px",
-                    height: "12px"
+                    height: "12px",
                   }}
                 >
                   LIVE
                 </Tag>
               )}
             </div>
-            
+
             {/* File count and source info - more compact */}
             <div
               style={{
@@ -859,7 +1071,7 @@ const EnhancedDashboard: React.FC = () => {
                 {record.githubData?.url ? "API" : "EST"}
               </Text>
             </div>
-            
+
             {/* Progress bar - more compact */}
             {record.additions + record.deletions > 0 && (
               <div style={{ marginTop: "2px" }}>
@@ -900,7 +1112,9 @@ const EnhancedDashboard: React.FC = () => {
             <ClockCircleOutlined
               style={{ marginRight: "3px", color: "#8c8c8c", fontSize: "11px" }}
             />
-            <Text type="secondary" style={{ fontSize: "11px" }}>{created}</Text>
+            <Text type="secondary" style={{ fontSize: "11px" }}>
+              {created}
+            </Text>
           </div>
         ),
       },
@@ -981,14 +1195,17 @@ const EnhancedDashboard: React.FC = () => {
             unCheckedChildren="OFF"
           />
           <Select
-            value={selectedTimeRange}
-            onChange={setSelectedTimeRange}
-            style={{ width: 120 }}
+            value={selectedRelease}
+            onChange={handleReleaseChange}
+            style={{ width: 160 }}
+            placeholder="Select Release"
           >
-            <Option value="1d">Last 24h</Option>
-            <Option value="7d">Last 7 days</Option>
-            <Option value="30d">Last 30 days</Option>
-            <Option value="90d">Last 90 days</Option>
+            <Option value="v2.1.0">v2.1.0 (Latest)</Option>
+            <Option value="v2.0.0">v2.0.0</Option>
+            <Option value="v1.9.0">v1.9.0</Option>
+            <Option value="v1.8.2">v1.8.2</Option>
+            <Option value="v1.8.1">v1.8.1</Option>
+            <Option value="v1.7.0">v1.7.0</Option>
           </Select>
           <Button
             type="primary"
@@ -1004,7 +1221,7 @@ const EnhancedDashboard: React.FC = () => {
       {/* Alert Banner */}
       <Alert
         message="System Status: All systems operational"
-        description="Last updated 2 minutes ago. No critical issues detected."
+        description={`${getTimeSinceUpdate()}. No critical issues detected.`}
         type="success"
         showIcon
         style={{ marginBottom: "24px" }}
@@ -1252,9 +1469,26 @@ const EnhancedDashboard: React.FC = () => {
                 <Button icon={<FilterOutlined />} size="small">
                   Filter
                 </Button>
-                <Button icon={<ExportOutlined />} size="small">
-                  Export
-                </Button>
+                <Dropdown
+                  overlay={
+                    <Menu>
+                      <Menu.Item onClick={handleExport}>
+                        <ExportOutlined /> Export All
+                      </Menu.Item>
+                      <Menu.Item onClick={handleExportByRelease}>
+                        <ExportOutlined /> Export by Release
+                      </Menu.Item>
+                      <Menu.Item onClick={handleExportJSON}>
+                        <ExportOutlined /> Export JSON
+                      </Menu.Item>
+                    </Menu>
+                  }
+                  trigger={["click"]}
+                >
+                  <Button icon={<ExportOutlined />} size="small">
+                    Export <DownOutlined />
+                  </Button>
+                </Dropdown>
               </Space>
             }
             style={{ height: "100%" }}
